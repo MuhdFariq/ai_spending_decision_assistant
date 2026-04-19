@@ -25,54 +25,55 @@ class _AffordabilityCheckerScreenState
   }
 
   void _checkAffordability() {
-  final item = _itemController.text.trim();
-  final amount = double.tryParse(_amountController.text.trim());
+    final item = _itemController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim());
 
-  if (item.isEmpty || amount == null) {
-    setState(() {
-      result = ExplainabilityService.formatResponse(
-        answer: 'Please enter a valid item name and amount.',
-        reason: 'The system needs both fields to evaluate affordability.',
-        basedOn: 'input validation rules.',
-      );
-    });
-    return;
+    if (item.isEmpty || amount == null) {
+      setState(() {
+        result = ExplainabilityService.formatResponse(
+          answer: 'Please enter a valid item name and amount.',
+          reason: 'The system needs both fields to evaluate affordability.',
+          basedOn: 'input validation rules.',
+        );
+      });
+      return;
+    }
+    // calculate remaining budget after this purchase
+    final remainingAfterPurchase = remainingBudget - amount;
+
+    // simple affordability check based on how much of the budget is used
+    if (amount <= remainingBudget * 0.25) {
+      setState(() {
+        result = ExplainabilityService.formatResponse(
+          answer: 'Yes, you can afford $item.',
+          reason:
+              'This expense is small compared to your remaining budget and does not significantly impact your finances.',
+          basedOn:
+              'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
+        );
+      });
+    } else if (amount <= remainingBudget) {
+      setState(() {
+        result = ExplainabilityService.formatResponse(
+          answer: 'You can afford $item, but be careful.',
+          reason:
+              'This purchase takes a noticeable portion of your remaining budget and may limit future spending.',
+          basedOn:
+              'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
+        );
+      });
+    } else {
+      setState(() {
+        result = ExplainabilityService.formatResponse(
+          answer: 'No, you may not be able to afford $item right now.',
+          reason:
+              'This expense exceeds your current remaining budget and may lead to overspending.',
+          basedOn:
+              'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, resulting in a deficit of RM${(-remainingAfterPurchase).toStringAsFixed(2)}.',
+        );
+      });
+    }
   }
-
-  final remainingAfterPurchase = remainingBudget - amount;
-
-  if (amount <= remainingBudget * 0.25) {
-    setState(() {
-      result = ExplainabilityService.formatResponse(
-        answer: 'Yes, you can afford $item.',
-        reason:
-            'This expense is small compared to your remaining budget and does not significantly impact your finances.',
-        basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
-      );
-    });
-  } else if (amount <= remainingBudget) {
-    setState(() {
-      result = ExplainabilityService.formatResponse(
-        answer: 'You can afford $item, but be careful.',
-        reason:
-            'This purchase takes a noticeable portion of your remaining budget and may limit future spending.',
-        basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
-      );
-    });
-  } else {
-    setState(() {
-      result = ExplainabilityService.formatResponse(
-        answer: 'No, you may not be able to afford $item right now.',
-        reason:
-            'This expense exceeds your current remaining budget and may lead to overspending.',
-        basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, resulting in a deficit of RM${(-remainingAfterPurchase).toStringAsFixed(2)}.',
-      );
-    });
-  }
-}
 
   @override
   void dispose() {

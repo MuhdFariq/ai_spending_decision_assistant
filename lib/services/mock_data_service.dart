@@ -1,3 +1,4 @@
+// temporary mock data until backend integration is ready
 class MockDataService {
   static double getRemainingBudget() {
     return 80.0;

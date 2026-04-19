@@ -1,5 +1,4 @@
 class GLMService {
-  // Later: put your real values here
   static const String baseUrl = '';
   static const String apiKey = '';
   static const String modelName = '';
@@ -9,20 +8,12 @@ class GLMService {
     required double remainingBudget,
     required List<Map<String, dynamic>> expenses,
   }) async {
-    final prompt = buildPrompt(
+    buildPrompt(
       userQuestion: userQuestion,
       remainingBudget: remainingBudget,
       expenses: expenses,
     );
 
-    // TEMP:
-    // No real API call yet, so return null and let fallback logic run.
-    //
-    // Later this function will:
-    // 1. send prompt to GLM
-    // 2. parse response
-    // 3. return AI text
-    // 4. return null on failure
     return null;
   }
 
@@ -31,8 +22,9 @@ class GLMService {
     required double remainingBudget,
     required List<Map<String, dynamic>> expenses,
   }) {
+    // build prompt using current budget + recent expenses context
     final expenseList = expenses
-        .map((e) => "- ${e['title']} RM${e['amount']} (${e['category']})")
+        .map((e) => '- ${e['title']} RM${e['amount']} (${e['category']})')
         .join('\n');
 
     return '''
@@ -61,12 +53,7 @@ Based on:
   }
 
   static String? extractTextFromApiResponse(Map<String, dynamic> data) {
-    // TEMP placeholder.
-    // Later, adapt this to the real GLM response shape.
-    //
-    // Example idea:
-    // return data['choices']?[0]?['message']?['content'];
-
+    // placeholder for real GLM API call (to be implemented later)
     return null;
   }
 

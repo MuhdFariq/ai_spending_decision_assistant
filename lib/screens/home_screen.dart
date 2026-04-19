@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'ai_chat_screen.dart';
+
 import 'affordability_checker_screen.dart';
+import 'ai_chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,7 +18,6 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-
             const Text(
               'Welcome 👋',
               style: TextStyle(
@@ -25,21 +25,16 @@ class HomeScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 10),
-
             const Text(
               'Make smarter financial decisions using AI insights.',
               style: TextStyle(fontSize: 16),
             ),
-
             const SizedBox(height: 30),
-
             _buildFeatureCard(
               context,
               title: 'AI Chat Assistant',
-              description:
-                  'Ask questions about your spending and get insights.',
+              description: 'Ask questions about your spending and get insights.',
               onTap: () {
                 Navigator.push(
                   context,
@@ -49,20 +44,16 @@ class HomeScreen extends StatelessWidget {
                 );
               },
             ),
-
             const SizedBox(height: 20),
-
             _buildFeatureCard(
               context,
               title: 'Can I Afford This?',
-              description:
-                  'Check if a purchase fits your current budget.',
+              description: 'Check if a purchase fits your current budget.',
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        const AffordabilityCheckerScreen(),
+                    builder: (context) => const AffordabilityCheckerScreen(),
                   ),
                 );
               },

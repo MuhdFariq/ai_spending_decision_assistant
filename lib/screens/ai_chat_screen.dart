@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/explainability_service.dart';
-import '../services/mock_data_service.dart';
+
 import '../services/glm_service.dart';
+import '../services/insight_service.dart';
+import '../services/mock_data_service.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -12,6 +13,7 @@ class AiChatScreen extends StatefulWidget {
 
 class _AiChatScreenState extends State<AiChatScreen> {
   final TextEditingController _messageController = TextEditingController();
+
   bool _isLoading = false;
 
   late final double remainingBudget;
@@ -20,8 +22,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final List<Map<String, String>> _messages = [
     {
       'sender': 'ai',
-      'text':
-          'Hi! Ask me about your spending, budget, or affordability.',
+      'text': 'Hi! Ask me about your spending, budget, or affordability.',
     },
   ];
 
@@ -33,110 +34,59 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-  final text = _messageController.text.trim();
+    final text = _messageController.text.trim();
 
-  if (text.isEmpty || _isLoading) return;
+    if (text.isEmpty || _isLoading) return;
 
-  setState(() {
-    _messages.add({'sender': 'user', 'text': text});
-    _messageController.clear();
-    _isLoading = true;
+    setState(() {
+      _messages.add({'sender': 'user', 'text': text});
+      _messageController.clear();
+      _isLoading = true;
 
-    _messages.add({
-      'sender': 'ai',
-      'text': 'Analyzing your budget...',
+      // show temporary "thinking" message while waiting for response
+      _messages.add({
+        'sender': 'ai',
+        'text': 'Analyzing your budget...',
+      });
     });
-  });
 
-  final prompt = GLMService.buildPrompt(
-  userQuestion: text,
-  remainingBudget: remainingBudget,
-  expenses: recentExpenses,
-);
-
-debugPrint('GLM PROMPT:\n$prompt');
-
-final canUseGLM = GLMService.isConfigured();
-
-final glmResponse = canUseGLM
-    ? await GLMService.getAIResponse(
-        userQuestion: text,
-        remainingBudget: remainingBudget,
-        expenses: recentExpenses,
-      )
-    : null;
-
-  String aiResponse;
-  final lowerText = text.toLowerCase();
-
-  final foodExpenses = recentExpenses
-      .where((expense) => expense['category'] == 'Food')
-      .toList();
-
-  final totalRecentSpending = recentExpenses.fold<double>(
-    0.0,
-    (sum, expense) => sum + (expense['amount'] as double),
-  );
-
-  if (glmResponse != null) {
-    aiResponse = glmResponse;
-  } else if (lowerText.contains('why') && lowerText.contains('overspend')) {
-    aiResponse = ExplainabilityService.formatResponse(
-      answer: 'You may be overspending mainly on food and entertainment.',
-      reason:
-          'You have ${foodExpenses.length} recent food purchases, and entertainment spending is also taking a noticeable share of your recent expenses.',
-      basedOn:
-          'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like ${recentExpenses[0]['title']} and ${recentExpenses[3]['title']}.',
+    final prompt = GLMService.buildPrompt(
+      userQuestion: text,
+      remainingBudget: remainingBudget,
+      expenses: recentExpenses,
     );
-  } else if (lowerText.contains('afford')) {
-    aiResponse = ExplainabilityService.formatResponse(
-      answer: 'You should be careful with this purchase.',
-      reason:
-          'Your remaining budget is RM${remainingBudget.toStringAsFixed(2)}, so any additional spending reduces flexibility for upcoming needs.',
-      basedOn:
-          'Current remaining budget and ${recentExpenses.length} recent expenses.',
-    );
-  } else if (lowerText.contains('reduce') ||
-      lowerText.contains('cut down') ||
-      lowerText.contains('save')) {
-    aiResponse = ExplainabilityService.formatResponse(
-      answer:
-          'You should consider reducing food and entertainment spending first.',
-      reason:
-          'These categories appear most often in your recent transactions and are the easiest place to cut smaller non-essential expenses.',
-      basedOn:
-          'Recent categories include Food, Transport, and Entertainment, with Food appearing most frequently.',
-    );
-  } else if (lowerText.contains('spending')) {
-    aiResponse = ExplainabilityService.formatResponse(
-      answer: 'Your spending looks active, especially in day-to-day purchases.',
-      reason:
-          'Smaller repeated purchases can add up quickly even if each one seems manageable.',
-      basedOn:
-          'Recent expenses such as ${recentExpenses[0]['title']}, ${recentExpenses[1]['title']}, and ${recentExpenses[2]['title']}.',
-    );
-  } else {
-    aiResponse = ExplainabilityService.formatResponse(
-      answer:
-          'I can help with overspending analysis, affordability checks, and ways to reduce spending.',
-      reason:
-          'Your budgeting assistant works best when the question is specific.',
-      basedOn: 'Current mock budget and recent expense data.',
-    );
-  }
 
-  setState(() {
-    _isLoading = false;
+    debugPrint('GLM PROMPT:\n$prompt');
 
-    _messages.removeLast(); // removes "Analyzing your budget..."
+    // try GLM first (only works when API is configured)
+    final canUseGLM = GLMService.isConfigured();
 
-    _messages.add({
-      'sender': 'ai',
-      'text': aiResponse,
+    final glmResponse = canUseGLM
+        ? await GLMService.getAIResponse(
+            userQuestion: text,
+            remainingBudget: remainingBudget,
+            expenses: recentExpenses,
+          )
+        : null;
+
+    // fallback to local rule-based logic if GLM is unavailable
+    final aiResponse = glmResponse ??
+        InsightService.generateFallbackResponse(
+          text: text,
+          remainingBudget: remainingBudget,
+          recentExpenses: recentExpenses,
+        );
+
+    setState(() {
+      _isLoading = false;
+
+      // remove the temporary loading message before showing actual response
+      _messages.removeLast();
+      _messages.add({
+        'sender': 'ai',
+        'text': aiResponse,
+      });
     });
-  });
-
-    _messageController.clear();
   }
 
   @override
