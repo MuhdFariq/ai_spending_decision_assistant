@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'firebase_options.dart';
+import 'services/firestore_service.dart';
+import 'services/analytics_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static final AnalyticsService analyticsService = AnalyticsService();
+  static final FirestoreService firestoreService = FirestoreService();
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'AI Spending Decision Assistant',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -30,6 +41,9 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
+
+      navigatorObservers: [analyticsService.getAnalyticsObserver()],
+
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }

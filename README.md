@@ -1,17 +1,29 @@
-# ai_spending_decision_assistant
+# 💰 AI Spending Assistant
+A student-focused budget app with AI insights.
 
-A new Flutter project.
+## 🏗 Project Architecture
+- **Models (`lib/models`)**: Shared data structures (Expense, User).
+- **Services (`lib/services`)**: Logic for Auth, Firestore, Z.ai, and Analytics.
+- **Screens (`lib/screens`)**: UI pages for each member's feature.
 
-## Getting Started
+## 👥 Team Tasks
+- **Member A**: AI Brain & Chat Interface
+- **Member B**: Dashboard & Budget Math
+- **Member C**: Expense Entry & Firestore Logic
+- **Member D (Lead)**: Insights, Validation & Setup
 
-This project is a starting point for a Flutter application.
+## 🚀 Getting Started for Team Members
+To run this project locally, follow these steps:
 
-A few resources to get you started if this is your first Flutter project:
+### 1. Prerequisites
+- Ensure you have **Flutter** installed (`flutter doctor`).
+- Install **Firebase CLI**: `npm install -g firebase-tools`
+- Activate **FlutterFire CLI**: `dart pub global activate flutterfire_cli`
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 2. Project Setup
+1. Clone the repo: `git clone <your-repo-link>`
+2. Run `flutter pub get` to install all plugins (Firebase, Z.ai http, etc.).
+3. **Important:** Run `flutterfire configure` and select our shared project. This will generate the `firebase_options.dart` file on your machine (which is ignored by Git).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# ai_spending_decision_assistant
+### 3. Environment Variables
+- Create a `.env` file in the root directory (if we use one) or check the `ai_service.dart` to add your **Z.ai API Key**.
