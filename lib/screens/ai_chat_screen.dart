@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/explainability_service.dart';
 import '../services/mock_data_service.dart';
+import '../services/glm_service.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -11,6 +12,7 @@ class AiChatScreen extends StatefulWidget {
 
 class _AiChatScreenState extends State<AiChatScreen> {
   final TextEditingController _messageController = TextEditingController();
+  bool _isLoading = false;
 
   late final double remainingBudget;
   late final List<Map<String, dynamic>> recentExpenses;
@@ -30,75 +32,109 @@ class _AiChatScreenState extends State<AiChatScreen> {
     recentExpenses = MockDataService.getRecentExpenses();
   }
 
-  void _sendMessage() {
-    final text = _messageController.text.trim();
+  Future<void> _sendMessage() async {
+  final text = _messageController.text.trim();
 
-    if (text.isEmpty) return;
+  if (text.isEmpty || _isLoading) return;
 
-    setState(() {
-      _messages.add({'sender': 'user', 'text': text});
+  setState(() {
+    _messages.add({'sender': 'user', 'text': text});
+    _messageController.clear();
+    _isLoading = true;
 
-      String aiResponse;
-      final lowerText = text.toLowerCase();
-
-      final foodExpenses = recentExpenses
-          .where((expense) => expense['category'] == 'Food')
-          .toList();
-
-      final totalRecentSpending = recentExpenses.fold<double>(
-        0.0,
-        (sum, expense) => sum + (expense['amount'] as double),
-      );
-
-      if (lowerText.contains('why') && lowerText.contains('overspend')) {
-        aiResponse = ExplainabilityService.formatResponse(
-          answer: 'You may be overspending mainly on food and entertainment.',
-          reason:
-              'You have ${foodExpenses.length} recent food purchases, and entertainment spending is also taking a noticeable share of your recent expenses.',
-          basedOn:
-              'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like ${recentExpenses[0]['title']} and ${recentExpenses[3]['title']}.',
-        );
-      } else if (lowerText.contains('afford')) {
-        aiResponse = ExplainabilityService.formatResponse(
-          answer: 'You should be careful with this purchase.',
-          reason:
-              'Your remaining budget is RM${remainingBudget.toStringAsFixed(2)}, so any additional spending reduces flexibility for upcoming needs.',
-          basedOn:
-              'Current remaining budget and ${recentExpenses.length} recent expenses.',
-        );
-      } else if (lowerText.contains('reduce') ||
-          lowerText.contains('cut down') ||
-          lowerText.contains('save')) {
-        aiResponse = ExplainabilityService.formatResponse(
-          answer: 'You should consider reducing food and entertainment spending first.',
-          reason:
-              'These categories appear most often in your recent transactions and are the easiest place to cut smaller non-essential expenses.',
-          basedOn:
-              'Recent categories include Food, Transport, and Entertainment, with Food appearing most frequently.',
-        );
-      } else if (lowerText.contains('spending')) {
-        aiResponse = ExplainabilityService.formatResponse(
-          answer: 'Your spending looks active, especially in day-to-day purchases.',
-          reason:
-              'Smaller repeated purchases can add up quickly even if each one seems manageable.',
-          basedOn:
-              'Recent expenses such as ${recentExpenses[0]['title']}, ${recentExpenses[1]['title']}, and ${recentExpenses[2]['title']}.',
-        );
-      } else {
-        aiResponse = ExplainabilityService.formatResponse(
-          answer:
-              'I can help with overspending analysis, affordability checks, and ways to reduce spending.',
-          reason:
-              'Your budgeting assistant works best when the question is specific.',
-          basedOn: 'Current mock budget and recent expense data.',
-        );
-      }
-
-      _messages.add({
-        'sender': 'ai',
-        'text': aiResponse,
-      });
+    _messages.add({
+      'sender': 'ai',
+      'text': 'Analyzing your budget...',
     });
+  });
+
+  final prompt = GLMService.buildPrompt(
+  userQuestion: text,
+  remainingBudget: remainingBudget,
+  expenses: recentExpenses,
+);
+
+debugPrint('GLM PROMPT:\n$prompt');
+
+final canUseGLM = GLMService.isConfigured();
+
+final glmResponse = canUseGLM
+    ? await GLMService.getAIResponse(
+        userQuestion: text,
+        remainingBudget: remainingBudget,
+        expenses: recentExpenses,
+      )
+    : null;
+
+  String aiResponse;
+  final lowerText = text.toLowerCase();
+
+  final foodExpenses = recentExpenses
+      .where((expense) => expense['category'] == 'Food')
+      .toList();
+
+  final totalRecentSpending = recentExpenses.fold<double>(
+    0.0,
+    (sum, expense) => sum + (expense['amount'] as double),
+  );
+
+  if (glmResponse != null) {
+    aiResponse = glmResponse;
+  } else if (lowerText.contains('why') && lowerText.contains('overspend')) {
+    aiResponse = ExplainabilityService.formatResponse(
+      answer: 'You may be overspending mainly on food and entertainment.',
+      reason:
+          'You have ${foodExpenses.length} recent food purchases, and entertainment spending is also taking a noticeable share of your recent expenses.',
+      basedOn:
+          'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like ${recentExpenses[0]['title']} and ${recentExpenses[3]['title']}.',
+    );
+  } else if (lowerText.contains('afford')) {
+    aiResponse = ExplainabilityService.formatResponse(
+      answer: 'You should be careful with this purchase.',
+      reason:
+          'Your remaining budget is RM${remainingBudget.toStringAsFixed(2)}, so any additional spending reduces flexibility for upcoming needs.',
+      basedOn:
+          'Current remaining budget and ${recentExpenses.length} recent expenses.',
+    );
+  } else if (lowerText.contains('reduce') ||
+      lowerText.contains('cut down') ||
+      lowerText.contains('save')) {
+    aiResponse = ExplainabilityService.formatResponse(
+      answer:
+          'You should consider reducing food and entertainment spending first.',
+      reason:
+          'These categories appear most often in your recent transactions and are the easiest place to cut smaller non-essential expenses.',
+      basedOn:
+          'Recent categories include Food, Transport, and Entertainment, with Food appearing most frequently.',
+    );
+  } else if (lowerText.contains('spending')) {
+    aiResponse = ExplainabilityService.formatResponse(
+      answer: 'Your spending looks active, especially in day-to-day purchases.',
+      reason:
+          'Smaller repeated purchases can add up quickly even if each one seems manageable.',
+      basedOn:
+          'Recent expenses such as ${recentExpenses[0]['title']}, ${recentExpenses[1]['title']}, and ${recentExpenses[2]['title']}.',
+    );
+  } else {
+    aiResponse = ExplainabilityService.formatResponse(
+      answer:
+          'I can help with overspending analysis, affordability checks, and ways to reduce spending.',
+      reason:
+          'Your budgeting assistant works best when the question is specific.',
+      basedOn: 'Current mock budget and recent expense data.',
+    );
+  }
+
+  setState(() {
+    _isLoading = false;
+
+    _messages.removeLast(); // removes "Analyzing your budget..."
+
+    _messages.add({
+      'sender': 'ai',
+      'text': aiResponse,
+    });
+  });
 
     _messageController.clear();
   }
@@ -218,7 +254,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _sendMessage,
+                  onPressed: _isLoading ? null : _sendMessage,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
