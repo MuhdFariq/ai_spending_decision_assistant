@@ -1,4 +1,5 @@
 class GLMService {
+  // Keep empty until real credentials are provided.
   static const String baseUrl = '';
   static const String apiKey = '';
   static const String modelName = '';
@@ -14,6 +15,8 @@ class GLMService {
       expenses: expenses,
     );
 
+    // Integration point for real GLM request.
+    // Intentionally returns null for now so fallback logic remains active.
     return null;
   }
 
@@ -53,8 +56,59 @@ Based on:
   }
 
   static String? extractTextFromApiResponse(Map<String, dynamic> data) {
-    // placeholder for real GLM API call (to be implemented later)
+    final choices = data['choices'];
+    if (choices is List && choices.isNotEmpty) {
+      final firstChoice = choices.first;
+      if (firstChoice is Map<String, dynamic>) {
+        final message = firstChoice['message'];
+        if (message is Map<String, dynamic>) {
+          final content = message['content'];
+          if (content is String && content.trim().isNotEmpty) {
+            return content.trim();
+          }
+        }
+      }
+    }
+
+    final outputText = data['output_text'];
+    if (outputText is String && outputText.trim().isNotEmpty) {
+      return outputText.trim();
+    }
+
     return null;
+  }
+
+  // Helpers below prepare integration without performing network calls yet.
+  static Uri? buildEndpointUri() {
+    if (baseUrl.isEmpty) return null;
+    return Uri.tryParse(baseUrl);
+  }
+
+  static Map<String, String> buildHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      if (apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
+    };
+  }
+
+  static Map<String, dynamic> buildRequestPayload({
+    required String userQuestion,
+    required double remainingBudget,
+    required List<Map<String, dynamic>> expenses,
+  }) {
+    final prompt = buildPrompt(
+      userQuestion: userQuestion,
+      remainingBudget: remainingBudget,
+      expenses: expenses,
+    );
+
+    return {
+      'model': modelName,
+      'messages': [
+        {'role': 'user', 'content': prompt},
+      ],
+      'temperature': 0.4,
+    };
   }
 
   static bool isConfigured() {

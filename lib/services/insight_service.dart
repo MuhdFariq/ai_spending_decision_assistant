@@ -21,9 +21,9 @@ class InsightService {
 
     if (lowerText.contains('why') && lowerText.contains('overspend')) {
       return ExplainabilityService.formatResponse(
-        answer: 'You may be overspending mainly on food and entertainment.',
+        answer: 'You may be overspending mostly in food and entertainment.',
         reason:
-            'You have ${foodExpenses.length} recent food purchases, and entertainment spending is also taking a noticeable share of your recent expenses.',
+            'You have ${foodExpenses.length} recent food purchases, and entertainment also takes a noticeable share of your recent spending.',
         basedOn:
             'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like ${recentExpenses[0]['title']} and ${recentExpenses[3]['title']}.',
       );
@@ -31,9 +31,9 @@ class InsightService {
 
     if (lowerText.contains('afford')) {
       return ExplainabilityService.formatResponse(
-        answer: 'You should be careful with this purchase.',
+        answer: 'Be careful with this purchase.',
         reason:
-            'Your remaining budget is RM${remainingBudget.toStringAsFixed(2)}, so any additional spending reduces flexibility for upcoming needs.',
+            'Your remaining budget is RM${remainingBudget.toStringAsFixed(2)}, so extra spending gives you less room for upcoming needs.',
         basedOn:
             'Current remaining budget and ${recentExpenses.length} recent expenses.',
       );
@@ -45,7 +45,7 @@ class InsightService {
       return ExplainabilityService.formatResponse(
         answer: 'You should consider reducing food and entertainment spending first.',
         reason:
-            'These categories appear most often in your recent transactions and are the easiest place to cut smaller non-essential expenses.',
+            'These categories appear most often in your recent transactions and are usually the easiest place to trim non-essential costs.',
         basedOn:
             'Recent categories include Food, Transport, and Entertainment, with Food appearing most frequently.',
       );
@@ -55,7 +55,7 @@ class InsightService {
       return ExplainabilityService.formatResponse(
         answer: 'Your spending looks active, especially in day-to-day purchases.',
         reason:
-            'Smaller repeated purchases can add up quickly even if each one seems manageable.',
+            'Repeated small purchases can add up quickly, even when each one feels manageable.',
         basedOn:
             'Recent expenses such as ${recentExpenses[0]['title']}, ${recentExpenses[1]['title']}, and ${recentExpenses[2]['title']}.',
       );
@@ -64,7 +64,7 @@ class InsightService {
     return ExplainabilityService.formatResponse(
       answer:
           'I can help with overspending analysis, affordability checks, and ways to reduce spending.',
-      reason: 'Your budgeting assistant works best when the question is specific.',
+      reason: 'I can give better guidance when your question is more specific.',
       basedOn: 'Current mock budget and recent expense data.',
     );
   }
