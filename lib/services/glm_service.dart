@@ -1,3 +1,5 @@
+import 'explainability_service.dart';
+
 class GLMService {
   // Keep empty until real credentials are provided.
   static const String baseUrl = '';
@@ -113,5 +115,33 @@ Based on:
 
   static bool isConfigured() {
     return baseUrl.isNotEmpty && apiKey.isNotEmpty && modelName.isNotEmpty;
+  }
+
+  static String ensureExplainabilityFormat({
+    required String responseText,
+    required double remainingBudget,
+    required int recentExpenseCount,
+  }) {
+    final trimmed = responseText.trim();
+    if (_hasRequiredSections(trimmed)) return trimmed;
+
+    final safeAnswer = trimmed.isEmpty
+        ? 'I recommend reviewing your spending before making this decision.'
+        : trimmed;
+
+    return ExplainabilityService.formatResponse(
+      answer: safeAnswer,
+      reason:
+          'This recommendation uses your current budget context and recent spending activity.',
+      basedOn:
+          'RM${remainingBudget.toStringAsFixed(2)} remaining budget and $recentExpenseCount recent expenses.',
+    );
+  }
+
+  static bool _hasRequiredSections(String text) {
+    final lowerText = text.toLowerCase();
+    return lowerText.contains('answer:') &&
+        lowerText.contains('reason:') &&
+        lowerText.contains('based on:');
   }
 }

@@ -9,6 +9,10 @@ class InsightService {
     required List<Map<String, dynamic>> recentExpenses,
   }) {
     final lowerText = text.toLowerCase();
+    final expenseTitles = recentExpenses
+        .map((expense) => expense['title']?.toString() ?? '')
+        .where((title) => title.isNotEmpty)
+        .toList();
 
     final foodExpenses = recentExpenses
         .where((expense) => expense['category'] == 'Food')
@@ -19,13 +23,20 @@ class InsightService {
       (sum, expense) => sum + (expense['amount'] as double),
     );
 
+    final primaryTitle =
+        expenseTitles.isNotEmpty ? expenseTitles.first : 'recent expenses';
+    final secondaryTitle = expenseTitles.length > 3
+        ? expenseTitles[3]
+        : (expenseTitles.length > 1 ? expenseTitles[1] : primaryTitle);
+    final spendingExamples = expenseTitles.take(3).join(', ');
+
     if (lowerText.contains('why') && lowerText.contains('overspend')) {
       return ExplainabilityService.formatResponse(
         answer: 'You may be overspending mostly in food and entertainment.',
         reason:
             'You have ${foodExpenses.length} recent food purchases, and entertainment also takes a noticeable share of your recent spending.',
         basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like ${recentExpenses[0]['title']} and ${recentExpenses[3]['title']}.',
+            'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like $primaryTitle and $secondaryTitle.',
       );
     }
 
@@ -57,7 +68,9 @@ class InsightService {
         reason:
             'Repeated small purchases can add up quickly, even when each one feels manageable.',
         basedOn:
-            'Recent expenses such as ${recentExpenses[0]['title']}, ${recentExpenses[1]['title']}, and ${recentExpenses[2]['title']}.',
+            spendingExamples.isNotEmpty
+                ? 'Recent expenses such as $spendingExamples.'
+                : 'Your recent expense history.',
       );
     }
 
