@@ -38,4 +38,8 @@ class FirestoreService {
     }
     return total;
   }
+
+  static Future<void> deleteExpense(String id) async {
+    await _firestore.collection('expenses').doc(id).delete();
+  }
 }
