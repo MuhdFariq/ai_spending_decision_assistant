@@ -13,6 +13,12 @@ class AiChatScreen extends StatefulWidget {
 }
 
 class _AiChatScreenState extends State<AiChatScreen> {
+
+  final List<String> _loadingMessages = [
+  'Reviewing your recent spending...',
+  'Checking your budget impact...',
+  'Preparing your explanation...',
+  ];
   final TextEditingController _messageController = TextEditingController();
 
   bool _isLoading = false;
@@ -48,71 +54,76 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _messageController.clear();
       _isLoading = true;
 
-      // show temporary "thinking" message while waiting for response
       _messages.add({
         'sender': 'ai',
-        'text': 'Analyzing your budget...',
+        'text': _loadingMessages[0],
         'source': 'loading',
       });
     });
 
-    final prompt = GLMService.buildPrompt(
-      userQuestion: text,
-      remainingBudget: remainingBudget,
-      expenses: recentExpenses,
-    );
+    Map<String, String>? finalMessage;
 
-    debugPrint('GLM PROMPT:\n$prompt');
+    try {
+      await Future.delayed(const Duration(milliseconds: 800));
 
-    final backendResponse = await GLMService.getStructuredResponse(
-      userQuestion: text,
-      remainingBudget: remainingBudget,
-      expenses: recentExpenses,
-      featureType: 'chat',
-    );
+      final glmResponse = await GLMService.getStructuredResponse(
+        userQuestion: text,
+        remainingBudget: remainingBudget,
+        expenses: recentExpenses,
+        featureType: 'chat',
+      );
 
-    // fallback to local rule-based logic if GLM is unavailable
-    final fallbackResponse = backendResponse == null
-        ? InsightService.generateFallbackResponse(
-            text: text,
-            remainingBudget: remainingBudget,
-            recentExpenses: recentExpenses,
-          )
-        : null;
+      if (glmResponse == null) {
+        throw Exception('GLM response was null');
+      }
 
-    final fallbackSections = fallbackResponse == null
-        ? null
-        : ExplainabilityService.parseResponseSections(fallbackResponse);
+      print('GLM RESPONSE RECEIVED: ${glmResponse.source} | ${glmResponse.answer}');
 
-    final message = backendResponse != null
-        ? {
-            'sender': 'ai',
-            'answer': backendResponse.answer,
-            'reason': backendResponse.reason,
-            'basedOn': backendResponse.basedOn,
-            'source': backendResponse.source,
-          }
-        : {
-            'sender': 'ai',
-            'answer':
-                fallbackSections?['answer'] ??
-                'I can help with spending and affordability guidance.',
-            'reason':
-                fallbackSections?['reason'] ??
-                'The backend is unavailable, so local fallback logic was used.',
-            'basedOn':
-                fallbackSections?['basedOn'] ??
-                'Current mock budget and recent expense data.',
-            'source': 'fallback',
-          };
+      finalMessage = {
+        'sender': 'ai',
+        'answer': glmResponse.answer,
+        'reason': glmResponse.reason,
+        'basedOn': glmResponse.basedOn,
+        'source': glmResponse.source,
+      };
+    } catch (e) {
+      print('GLM FAILED IN FLUTTER: $e');
+      final fallbackResponse = InsightService.generateFallbackResponse(
+        text: text,
+        remainingBudget: remainingBudget,
+        recentExpenses: recentExpenses,
+      );
 
-    setState(() {
-      _isLoading = false;
+      final fallbackSections =
+          ExplainabilityService.parseResponseSections(fallbackResponse);
 
-      // remove the temporary loading message before showing actual response
-      _messages.removeLast();
-      _messages.add(message);
-    });
+      finalMessage = {
+        'sender': 'ai',
+        'answer':
+            fallbackSections?['answer'] ??
+            'I can help with spending and affordability guidance.',
+        'reason': fallbackSections?['reason'] ?? 'Local fallback logic was used.',
+        'basedOn':
+            fallbackSections?['basedOn'] ??
+            'Current mock budget and recent expense data.',
+        'source': 'glm_failed',
+      };
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        if (_messages.isNotEmpty && _messages.last['source'] == 'loading') {
+        _messages.removeLast();
+      }
+
+        _isLoading = false;
+
+        if (finalMessage != null) {
+          _messages.add(finalMessage!);
+          print("FINAL MESSAGE: $finalMessage");
+        }
+      });
+    }
   }
 
   @override

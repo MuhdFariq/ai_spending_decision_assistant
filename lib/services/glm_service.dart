@@ -30,7 +30,6 @@ class GLMService {
   // Uses localhost for desktop/web; 10.0.2.2 supports Android emulator.
   static const List<String> _backendBaseUrls = <String>[
     'http://127.0.0.1:8000',
-    'http://10.0.2.2:8000',
   ];
 
   static Future<String?> getAIResponse({
@@ -71,11 +70,13 @@ class GLMService {
       if (endpoint == null) continue;
 
       try {
-        final response = await http.post(
-          endpoint,
-          headers: const {'Content-Type': 'application/json'},
-          body: jsonEncode(payload),
-        );
+        final response = await http
+            .post(
+              endpoint,
+              headers: const {'Content-Type': 'application/json'},
+              body: jsonEncode(payload),
+            )
+            .timeout(const Duration(seconds: 15));
 
         if (response.statusCode != 200) {
           continue;

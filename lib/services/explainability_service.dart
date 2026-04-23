@@ -15,18 +15,29 @@ class ExplainabilityService {
 
     final answer = _extractSection(
       source: text,
-      labelPattern: RegExp(r'(?i)answer\s*:'),
-      nextLabelsPattern: RegExp(r'(?i)(reason\s*:|based\s*on\s*:)'),
+      labelPattern: RegExp(r'answer\s*:', caseSensitive: false),
+      nextLabelsPattern: RegExp(
+        r'(reason\s*:|based\s*on\s*:)',
+        caseSensitive: false,
+      ),
     );
+
     final reason = _extractSection(
       source: text,
-      labelPattern: RegExp(r'(?i)reason\s*:'),
-      nextLabelsPattern: RegExp(r'(?i)(answer\s*:|based\s*on\s*:)'),
+      labelPattern: RegExp(r'reason\s*:', caseSensitive: false),
+      nextLabelsPattern: RegExp(
+        r'(answer\s*:|based\s*on\s*:)',
+        caseSensitive: false,
+      ),
     );
+
     final basedOn = _extractSection(
       source: text,
-      labelPattern: RegExp(r'(?i)based\s*on\s*:'),
-      nextLabelsPattern: RegExp(r'(?i)(answer\s*:|reason\s*:)'),
+      labelPattern: RegExp(r'based\s*on\s*:', caseSensitive: false),
+      nextLabelsPattern: RegExp(
+        r'(answer\s*:|reason\s*:)',
+        caseSensitive: false,
+      ),
     );
 
     if (answer == null || reason == null || basedOn == null) return null;

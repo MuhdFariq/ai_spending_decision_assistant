@@ -109,24 +109,56 @@ class _AffordabilityCheckerScreenState
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Answer: ${sections['answer'] ?? ''}',
-          style: const TextStyle(fontSize: 16, height: 1.4),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Reason: ${sections['reason'] ?? ''}',
-          style: const TextStyle(fontSize: 16, height: 1.4),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Based on: ${sections['basedOn'] ?? ''}',
-          style: const TextStyle(fontSize: 16, height: 1.4),
-        ),
-      ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.deepPurple.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black),
+              children: [
+                const TextSpan(
+                  text: 'Answer: ',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                  ),
+                ),
+                TextSpan(
+                  text: sections['answer'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Reason: ${sections['reason'] ?? ''}',
+            style: const TextStyle(fontSize: 15, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'BasedOn: ${sections['basedOn'] ?? ''}',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
