@@ -29,33 +29,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() => _isPredicting = true);
 
     try {
-      final String predicted = await _aiService.predictCategory(note);
-      if (_categories.contains(predicted)) {
+      final predicted = await _aiService.getAiResponse(
+        "Categorize this expense: '$note'. Reply with ONLY the category name from this list: Food, Transport, Shopping, Bills, Others."
+      );
+
+      final cleanResult = predicted.trim().replaceAll('.', '');
+      print("Predicted category: $cleanResult"); // Check this in terminal!
+      if (_categories.contains(cleanResult)) {
         setState(() {
-          _selectedCategory = predicted;
+          _selectedCategory = cleanResult;
         });
+      }else {
+        // If it didn't match, let's at least show the raw result to debug
+          ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("AI guessed: $cleanResult (No match)")),
+        );
       }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Suggested category: $predicted')),
-      );
-    } on AiServiceException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
     } catch (e) {
       debugPrint("AI Error: $e");
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to categorize expense right now.'),
-        ),
-      );
     } finally {
-      if (mounted) {
-        setState(() => _isPredicting = false);
-      }
+      setState(() => _isPredicting = false);
     }
   }
 
@@ -192,7 +185,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               const Text("Recent History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const Divider(),
               StreamBuilder<List<Expense>>(
-                stream: widget.expensesStream ?? FirestoreService.getExpenses(), 
+                stream: widget.expensesStream ?? FirestoreService.getExpenses(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
