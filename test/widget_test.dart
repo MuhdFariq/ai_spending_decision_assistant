@@ -1,30 +1,42 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ai_spending_decision_assistant/main.dart';
+import 'package:ai_spending_decision_assistant/models/expenses.dart';
+import 'package:ai_spending_decision_assistant/screens/home_shell.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App shell shows dashboard and add expense navigation', (
+    WidgetTester tester,
+  ) async {
+    final Stream<List<Expense>> expensesStream = Stream<List<Expense>>.value(
+      <Expense>[
+        Expense(
+          amount: 25,
+          category: 'Food',
+          note: 'Lunch',
+          date: DateTime.now(),
+        ),
+      ],
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MyApp(
+        home: HomeShell(
+          dashboardExpensesStream: expensesStream,
+          addExpenseHistoryStream: Stream<List<Expense>>.value(<Expense>[]),
+        ),
+        enableAnalytics: false,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Financial health at a glance'), findsOneWidget);
+    expect(find.text('Spent This Month'), findsOneWidget);
+    expect(find.text('Add Expense'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Add Expense'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save Full Expense'), findsOneWidget);
   });
 }
