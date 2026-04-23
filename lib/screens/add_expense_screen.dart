@@ -21,6 +21,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final List<String> _categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Others'];
 
   void _predictCategory() async {
+    print("DEBUG: Using API Key: ${_aiService.apiKey.substring(0, 5)}...");
     final note = _noteController.text;
     if (note.isEmpty) return;
 
@@ -32,10 +33,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
 
       final cleanResult = predicted.trim().replaceAll('.', '');
+      print("Predicted category: $cleanResult"); // Check this in terminal!
       if (_categories.contains(cleanResult)) {
         setState(() {
           _selectedCategory = cleanResult;
         });
+      }else {
+        // If it didn't match, let's at least show the raw result to debug
+          ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("AI guessed: $cleanResult (No match)")),
+        );
       }
     } catch (e) {
       debugPrint("AI Error: $e");
