@@ -1,24 +1,114 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import 'explainability_service.dart';
 
+class AiBrainResponse {
+  const AiBrainResponse({
+    required this.answer,
+    required this.reason,
+    required this.basedOn,
+    required this.source,
+  });
+
+  final String answer;
+  final String reason;
+  final String basedOn;
+  final String source;
+
+  String asExplainabilityText() {
+    return ExplainabilityService.formatResponse(
+      answer: answer,
+      reason: reason,
+      basedOn: basedOn,
+    );
+  }
+}
+
 class GLMService {
-  // Keep empty until real credentials are provided.
-  static const String baseUrl = '';
-  static const String apiKey = '';
-  static const String modelName = '';
+  // Uses localhost for desktop/web; 10.0.2.2 supports Android emulator.
+  static const List<String> _backendBaseUrls = <String>[
+    'http://127.0.0.1:8000',
+    'http://10.0.2.2:8000',
+  ];
 
   static Future<String?> getAIResponse({
     required String userQuestion,
     required double remainingBudget,
     required List<Map<String, dynamic>> expenses,
+    String featureType = 'chat',
+    double amount = 0.0,
   }) async {
-    buildPrompt(
+    final structured = await getStructuredResponse(
       userQuestion: userQuestion,
       remainingBudget: remainingBudget,
       expenses: expenses,
+      featureType: featureType,
+      amount: amount,
     );
 
-    // Integration point for real GLM request.
-    // Intentionally returns null for now so fallback logic remains active.
+    return structured?.asExplainabilityText();
+  }
+
+  static Future<AiBrainResponse?> getStructuredResponse({
+    required String userQuestion,
+    required double remainingBudget,
+    required List<Map<String, dynamic>> expenses,
+    String featureType = 'chat',
+    double amount = 0.0,
+  }) async {
+    final payload = {
+      'user_question': userQuestion,
+      'remaining_budget': remainingBudget,
+      'feature_type': featureType,
+      'amount': amount,
+      'recent_expenses': expenses,
+    };
+
+    for (final baseUrl in _backendBaseUrls) {
+      final endpoint = Uri.tryParse('$baseUrl/ai/respond');
+      if (endpoint == null) continue;
+
+      try {
+        final response = await http.post(
+          endpoint,
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode(payload),
+        );
+
+        if (response.statusCode != 200) {
+          continue;
+        }
+
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          continue;
+        }
+
+        final answer = decoded['answer']?.toString().trim();
+        final reason = decoded['reason']?.toString().trim();
+        final basedOn = decoded['basedOn']?.toString().trim();
+        final source = decoded['source']?.toString().trim() ?? 'fallback';
+
+        if ((answer ?? '').isEmpty ||
+            (reason ?? '').isEmpty ||
+            (basedOn ?? '').isEmpty) {
+          continue;
+        }
+
+        return AiBrainResponse(
+          answer: answer!,
+          reason: reason!,
+          basedOn: basedOn!,
+          source: source,
+        );
+      } catch (_) {
+        // Swallow errors and try next endpoint.
+      }
+    }
+
+    // Returning null keeps existing fallback behavior active.
     return null;
   }
 
@@ -55,66 +145,6 @@ Reason:
 Based on:
 <data reference using the given budget and expenses>
 ''';
-  }
-
-  static String? extractTextFromApiResponse(Map<String, dynamic> data) {
-    final choices = data['choices'];
-    if (choices is List && choices.isNotEmpty) {
-      final firstChoice = choices.first;
-      if (firstChoice is Map<String, dynamic>) {
-        final message = firstChoice['message'];
-        if (message is Map<String, dynamic>) {
-          final content = message['content'];
-          if (content is String && content.trim().isNotEmpty) {
-            return content.trim();
-          }
-        }
-      }
-    }
-
-    final outputText = data['output_text'];
-    if (outputText is String && outputText.trim().isNotEmpty) {
-      return outputText.trim();
-    }
-
-    return null;
-  }
-
-  // Helpers below prepare integration without performing network calls yet.
-  static Uri? buildEndpointUri() {
-    if (baseUrl.isEmpty) return null;
-    return Uri.tryParse(baseUrl);
-  }
-
-  static Map<String, String> buildHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      if (apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
-    };
-  }
-
-  static Map<String, dynamic> buildRequestPayload({
-    required String userQuestion,
-    required double remainingBudget,
-    required List<Map<String, dynamic>> expenses,
-  }) {
-    final prompt = buildPrompt(
-      userQuestion: userQuestion,
-      remainingBudget: remainingBudget,
-      expenses: expenses,
-    );
-
-    return {
-      'model': modelName,
-      'messages': [
-        {'role': 'user', 'content': prompt},
-      ],
-      'temperature': 0.4,
-    };
-  }
-
-  static bool isConfigured() {
-    return baseUrl.isNotEmpty && apiKey.isNotEmpty && modelName.isNotEmpty;
   }
 
   static String ensureExplainabilityFormat({

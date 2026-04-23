@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/explainability_service.dart';
+import '../services/glm_service.dart';
 import '../services/mock_data_service.dart';
 
 class AffordabilityCheckerScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _AffordabilityCheckerScreenState
 
   late final double remainingBudget;
   String result = '';
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -24,11 +26,11 @@ class _AffordabilityCheckerScreenState
     remainingBudget = MockDataService.getRemainingBudget();
   }
 
-  void _checkAffordability() {
+  Future<void> _checkAffordability() async {
     final item = _itemController.text.trim();
     final amount = double.tryParse(_amountController.text.trim());
 
-    if (item.isEmpty || amount == null) {
+    if (item.isEmpty || amount == null || _isLoading) {
       setState(() {
         result = ExplainabilityService.formatResponse(
           answer: 'Please enter a valid item name and amount.',
@@ -38,41 +40,94 @@ class _AffordabilityCheckerScreenState
       });
       return;
     }
-    // calculate remaining budget after this purchase
+
+    setState(() {
+      _isLoading = true;
+      result = '';
+    });
+
+    final backendResponse = await GLMService.getStructuredResponse(
+      userQuestion: 'Can I afford $item for RM${amount.toStringAsFixed(2)}?',
+      remainingBudget: remainingBudget,
+      expenses: MockDataService.getRecentExpenses(),
+      featureType: 'affordability',
+      amount: amount,
+    );
+
+    setState(() {
+      _isLoading = false;
+      if (backendResponse != null) {
+        result = backendResponse.asExplainabilityText();
+      } else {
+        result = _buildLocalFallbackResponse(item: item, amount: amount);
+      }
+    });
+  }
+
+  String _buildLocalFallbackResponse({
+    required String item,
+    required double amount,
+  }) {
     final remainingAfterPurchase = remainingBudget - amount;
 
-    // simple affordability check based on how much of the budget is used
     if (amount <= remainingBudget * 0.25) {
-      setState(() {
-        result = ExplainabilityService.formatResponse(
-          answer: 'Yes - you can afford $item.',
-          reason:
-              'This expense is small compared to your remaining budget and does not significantly impact your finances.',
-          basedOn:
-              'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
-        );
-      });
-    } else if (amount <= remainingBudget) {
-      setState(() {
-        result = ExplainabilityService.formatResponse(
-          answer: 'Be careful - you can afford $item, but it takes a noticeable share of your budget.',
-          reason:
-              'This purchase takes a noticeable portion of your remaining budget and may limit future spending.',
-          basedOn:
-              'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
-        );
-      });
-    } else {
-      setState(() {
-        result = ExplainabilityService.formatResponse(
-          answer: 'No - you may not be able to afford $item right now.',
-          reason:
-              'This expense exceeds your current remaining budget and may lead to overspending.',
-          basedOn:
-              'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, resulting in a deficit of RM${(-remainingAfterPurchase).toStringAsFixed(2)}.',
-        );
-      });
+      return ExplainabilityService.formatResponse(
+        answer: 'Yes - you can afford $item.',
+        reason:
+            'This expense is small compared to your remaining budget and does not significantly impact your finances.',
+        basedOn:
+            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
+      );
     }
+
+    if (amount <= remainingBudget) {
+      return ExplainabilityService.formatResponse(
+        answer:
+            'Be careful - you can afford $item, but it takes a noticeable share of your budget.',
+        reason:
+            'This purchase takes a noticeable portion of your remaining budget and may limit future spending.',
+        basedOn:
+            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
+      );
+    }
+
+    return ExplainabilityService.formatResponse(
+      answer: 'No - you may not be able to afford $item right now.',
+      reason:
+          'This expense exceeds your current remaining budget and may lead to overspending.',
+      basedOn:
+          'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, resulting in a deficit of RM${(-remainingAfterPurchase).toStringAsFixed(2)}.',
+    );
+  }
+
+  Widget _buildFormattedResult(String responseText) {
+    final sections = ExplainabilityService.parseResponseSections(responseText);
+    if (sections == null) {
+      return Text(
+        responseText,
+        style: const TextStyle(fontSize: 16, height: 1.4),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Answer: ${sections['answer'] ?? ''}',
+          style: const TextStyle(fontSize: 16, height: 1.4),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Reason: ${sections['reason'] ?? ''}',
+          style: const TextStyle(fontSize: 16, height: 1.4),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Based on: ${sections['basedOn'] ?? ''}',
+          style: const TextStyle(fontSize: 16, height: 1.4),
+        ),
+      ],
+    );
   }
 
   @override
@@ -154,14 +209,16 @@ class _AffordabilityCheckerScreenState
             ),
             const SizedBox(height: 14),
             ElevatedButton(
-              onPressed: _checkAffordability,
+              onPressed: _isLoading ? null : _checkAffordability,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Text('Check Affordability'),
+              child: Text(
+                _isLoading ? 'Checking...' : 'Check Affordability',
+              ),
             ),
             const SizedBox(height: 20),
             if (result.isNotEmpty)
@@ -179,10 +236,7 @@ class _AffordabilityCheckerScreenState
                     ),
                   ],
                 ),
-                child: Text(
-                  result,
-                  style: const TextStyle(fontSize: 16, height: 1.4),
-                ),
+                child: _buildFormattedResult(result),
               ),
           ],
         ),

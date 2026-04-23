@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/explainability_service.dart';
 import '../services/glm_service.dart';
 import '../services/insight_service.dart';
 import '../services/mock_data_service.dart';
@@ -22,7 +23,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final List<Map<String, String>> _messages = [
     {
       'sender': 'ai',
-      'text': 'Hi! Ask me about your spending, budget, or affordability.',
+      'answer': 'Hi! Ask me about your spending, budget, or affordability.',
+      'reason':
+          'I can explain recommendations using your budget and recent expenses.',
+      'basedOn': 'Your current mock budget profile.',
+      'source': 'system',
     },
   ];
 
@@ -47,6 +52,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _messages.add({
         'sender': 'ai',
         'text': 'Analyzing your budget...',
+        'source': 'loading',
       });
     });
 
@@ -58,34 +64,54 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
     debugPrint('GLM PROMPT:\n$prompt');
 
-    // try GLM first (only works when API is configured)
-    final canUseGLM = GLMService.isConfigured();
+    final backendResponse = await GLMService.getStructuredResponse(
+      userQuestion: text,
+      remainingBudget: remainingBudget,
+      expenses: recentExpenses,
+      featureType: 'chat',
+    );
 
-    final glmResponse = canUseGLM
-        ? await GLMService.getAIResponse(
-            userQuestion: text,
+    // fallback to local rule-based logic if GLM is unavailable
+    final fallbackResponse = backendResponse == null
+        ? InsightService.generateFallbackResponse(
+            text: text,
             remainingBudget: remainingBudget,
-            expenses: recentExpenses,
+            recentExpenses: recentExpenses,
           )
         : null;
 
-    // fallback to local rule-based logic if GLM is unavailable
-    final aiResponse = glmResponse ??
-        InsightService.generateFallbackResponse(
-          text: text,
-          remainingBudget: remainingBudget,
-          recentExpenses: recentExpenses,
-        );
+    final fallbackSections = fallbackResponse == null
+        ? null
+        : ExplainabilityService.parseResponseSections(fallbackResponse);
+
+    final message = backendResponse != null
+        ? {
+            'sender': 'ai',
+            'answer': backendResponse.answer,
+            'reason': backendResponse.reason,
+            'basedOn': backendResponse.basedOn,
+            'source': backendResponse.source,
+          }
+        : {
+            'sender': 'ai',
+            'answer':
+                fallbackSections?['answer'] ??
+                'I can help with spending and affordability guidance.',
+            'reason':
+                fallbackSections?['reason'] ??
+                'The backend is unavailable, so local fallback logic was used.',
+            'basedOn':
+                fallbackSections?['basedOn'] ??
+                'Current mock budget and recent expense data.',
+            'source': 'fallback',
+          };
 
     setState(() {
       _isLoading = false;
 
       // remove the temporary loading message before showing actual response
       _messages.removeLast();
-      _messages.add({
-        'sender': 'ai',
-        'text': aiResponse,
-      });
+      _messages.add(message);
     });
   }
 
@@ -120,11 +146,46 @@ class _AiChatScreenState extends State<AiChatScreen> {
             ),
           ],
         ),
-        child: Text(
-          message['text'] ?? '',
-          style: const TextStyle(fontSize: 16, height: 1.4),
-        ),
+        child: isUser
+            ? Text(
+                message['text'] ?? '',
+                style: const TextStyle(fontSize: 16, height: 1.4),
+              )
+            : _buildAiResponseContent(message),
       ),
+    );
+  }
+
+  Widget _buildAiResponseContent(Map<String, String> message) {
+    final answer = message['answer'];
+    final reason = message['reason'];
+    final basedOn = message['basedOn'];
+    final text = message['text'];
+    final source = message['source'];
+
+    if (answer == null || reason == null || basedOn == null) {
+      return Text(
+        text ?? '',
+        style: const TextStyle(fontSize: 16, height: 1.4),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Answer: $answer', style: const TextStyle(fontSize: 16)),
+        const SizedBox(height: 8),
+        Text('Reason: $reason', style: const TextStyle(fontSize: 15)),
+        const SizedBox(height: 8),
+        Text('Based on: $basedOn', style: const TextStyle(fontSize: 15)),
+        if (source != null && source.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Source: $source',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ],
+      ],
     );
   }
 
