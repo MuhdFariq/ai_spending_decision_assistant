@@ -223,7 +223,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Chat Assistant'),
+        title: const Text('Spending Assistant'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -269,7 +269,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   child: TextField(
                     controller: _messageController,
                     decoration: InputDecoration(
-                      hintText: 'Ask about your spending...',
+                      hintText: 'Ask about your budget or spending...',
                       filled: true,
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(
@@ -295,7 +295,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text('Send'),
+                  child: const Text('Ask'),
                 ),
               ],
             ),

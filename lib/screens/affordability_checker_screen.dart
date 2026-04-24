@@ -146,12 +146,12 @@ class _AffordabilityCheckerScreenState
           ),
           const SizedBox(height: 12),
           Text(
-            'Reason: ${sections['reason'] ?? ''}',
+            'Why: ${sections['reason'] ?? ''}',
             style: const TextStyle(fontSize: 15, height: 1.5),
           ),
           const SizedBox(height: 12),
           Text(
-            'BasedOn: ${sections['basedOn'] ?? ''}',
+            'Based on: ${sections['basedOn'] ?? ''}',
             style: TextStyle(
               fontSize: 13,
               height: 1.4,
@@ -215,7 +215,7 @@ class _AffordabilityCheckerScreenState
                 border: Border.all(color: Colors.deepPurple.shade100),
               ),
               child: const Text(
-                'Enter an expense name and amount to check whether it fits your current budget.',
+                'Enter an item and amount to see if it fits your remaining budget.',
                 style: TextStyle(fontSize: 15),
               ),
             ),
@@ -233,7 +233,7 @@ class _AffordabilityCheckerScreenState
             TextField(
               controller: _itemController,
               decoration: InputDecoration(
-                labelText: 'Expense name',
+                labelText: 'Item name',
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -246,7 +246,7 @@ class _AffordabilityCheckerScreenState
               controller: _amountController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Amount',
+                labelText: 'Amount (RM)',
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -264,7 +264,7 @@ class _AffordabilityCheckerScreenState
                 ),
               ),
               child: Text(
-                _isLoading ? 'Checking...' : 'Check Affordability',
+                _isLoading ? 'Checking...' : 'Check if I can afford this',
               ),
             ),
             const SizedBox(height: 20),
