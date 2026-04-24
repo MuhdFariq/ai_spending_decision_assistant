@@ -5,11 +5,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'services/analytics_service.dart';
 import 'screens/home_shell.dart';
+import 'screens/add_expense_screen.dart';
+import 'screens/home_screen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+void main() {
   runApp(const MyApp());
 }
 
@@ -31,6 +30,7 @@ class MyApp extends StatelessWidget {
         : <NavigatorObserver>[];
 
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'AI Spending Decision Assistant',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

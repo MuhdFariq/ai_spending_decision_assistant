@@ -25,5 +25,36 @@ To run this project locally, follow these steps:
 2. Run `flutter pub get` to install all plugins (Firebase, Z.ai http, etc.).
 3. **Important:** Run `flutterfire configure` and select our shared project. This will generate the `firebase_options.dart` file on your machine (which is ignored by Git).
 
-### 3. Environment Variables
-- Create a `.env` file in the root directory (if we use one) or check the `ai_service.dart` to add your **Z.ai API Key**.
+### 3. Environment Variables (Required for AI Features)
+
+The AI functionality requires environment variables to be set in the backend.
+
+### Setup Steps:
+
+1. Navigate to the backend folder:
+
+   backend/
+
+2. Create a file named:
+
+   .env
+
+   inside the backend directory.
+
+3. Add the following content:
+
+   ZAI_API_KEY=your_api_key_here
+   ZAI_BASE_URL=https://api.ilmu.ai/v1
+   ZAI_MODEL=ilmu-glm-5.1
+   PORT=8000
+
+4. Replace `your_api_key_here` with your actual API key.
+
+5. Start the backend server:
+
+   python -m uvicorn app.main:app --reload
+
+### Notes:
+- The `.env` file inside `/backend` is not included in the repository for security reasons.
+- Without this file, AI features will fall back to local logic.
+- Do NOT commit your `.env` file to GitHub.

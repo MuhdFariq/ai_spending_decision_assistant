@@ -23,6 +23,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final List<String> _categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Others'];
 
   void _predictCategory() async {
+    print("DEBUG: Using API Key: ${_aiService.apiKey.substring(0, 5)}...");
     final note = _noteController.text;
     if (note.isEmpty) return;
 

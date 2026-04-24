@@ -3,9 +3,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AiService {
-  static String get _apiKey => dotenv.get('ZAI_API_KEY', fallback: '');
+  String get apiKey => _apiKey;
 
-  static const String _baseUrl = 'https://api.ilmu.ai/anthropic/v1/messages';
+  static String get _apiKey =>
+      dotenv.get('ZAI_API_KEY', fallback: 'Key not found');
+  static const String _baseUrl =
+      'https://api.ilmu.ai/anthropic/v1/messages';
 
   Future<String> getAiResponse(String prompt) async {
     if (_apiKey.isEmpty) throw Exception('API key missing');
