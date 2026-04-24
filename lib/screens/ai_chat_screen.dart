@@ -77,7 +77,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
         throw Exception('GLM response was null');
       }
 
-      print('GLM RESPONSE RECEIVED: ${glmResponse.source} | ${glmResponse.answer}');
 
       finalMessage = {
         'sender': 'ai',
@@ -87,7 +86,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
         'source': glmResponse.source,
       };
     } catch (e) {
-      print('GLM FAILED IN FLUTTER: $e');
       final fallbackResponse = InsightService.generateFallbackResponse(
         text: text,
         remainingBudget: remainingBudget,
@@ -120,7 +118,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
         if (finalMessage != null) {
           _messages.add(finalMessage!);
-          print("FINAL MESSAGE: $finalMessage");
         }
       });
     }
@@ -190,7 +187,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Reason: ${reason.length > 180 ? '${reason.substring(0, 180)}...' : reason}',
+          'Why: ${reason.length > 180 ? '${reason.substring(0, 180)}...' : reason}',
           style: const TextStyle(fontSize: 15),
         ),
         const SizedBox(height: 8),

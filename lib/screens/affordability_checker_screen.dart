@@ -57,9 +57,10 @@ class _AffordabilityCheckerScreenState
     setState(() {
       _isLoading = false;
       if (backendResponse != null) {
-        result = backendResponse.asExplainabilityText();
+        final label = backendResponse.source == 'glm' ? '[AI]' : '[Fallback]';
+        result = '${backendResponse.asExplainabilityText()}\n\n$label';
       } else {
-        result = _buildLocalFallbackResponse(item: item, amount: amount);
+        result = '${_buildLocalFallbackResponse(item: item, amount: amount)}\n\n[Fallback]';
       }
     });
   }
@@ -157,6 +158,20 @@ class _AffordabilityCheckerScreenState
               color: Colors.grey.shade700,
             ),
           ),
+
+          const SizedBox(height: 10),
+
+          if (responseText.contains('[AI]'))
+            Text(
+              'AI response',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+
+          if (responseText.contains('[Fallback]'))
+            Text(
+              'AI fallback response',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
         ],
       ),
     );
