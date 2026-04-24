@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/explainability_service.dart';
 import '../services/glm_service.dart';
-import '../services/mock_data_service.dart';
+import '../services/firestore_service.dart';
+import '../services/budget_service.dart';
 
 class AffordabilityCheckerScreen extends StatefulWidget {
   const AffordabilityCheckerScreen({super.key});
@@ -16,25 +17,19 @@ class _AffordabilityCheckerScreenState
   final TextEditingController _itemController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
 
-  late final double remainingBudget;
+  double remainingBudget = 0;
   String result = '';
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    remainingBudget = MockDataService.getRemainingBudget();
-  }
 
   Future<void> _checkAffordability() async {
     final item = _itemController.text.trim();
     final amount = double.tryParse(_amountController.text.trim());
 
-    if (item.isEmpty || amount == null || _isLoading) {
+    if (item.isEmpty || amount == null || amount <= 0 || _isLoading) {
       setState(() {
         result = ExplainabilityService.formatResponse(
           answer: 'Please enter a valid item name and amount.',
-          reason: 'The system needs both fields to evaluate affordability.',
+          reason: 'The system needs both fields and a positive amount to evaluate affordability.',
           basedOn: 'input validation rules.',
         );
       });
@@ -46,49 +41,73 @@ class _AffordabilityCheckerScreenState
       result = '';
     });
 
-    final backendResponse = await GLMService.getStructuredResponse(
-      userQuestion: 'Can I afford $item for RM${amount.toStringAsFixed(2)}?',
-      remainingBudget: remainingBudget,
-      expenses: MockDataService.getRecentExpenses(),
-      featureType: 'affordability',
-      amount: amount,
-    );
+    try {
+      final expenses = await FirestoreService.getExpenses().first;
+      final metrics = BudgetService.buildDashboardMetrics(expenses);
+      remainingBudget = metrics.remainingBudget;
 
-    setState(() {
-      _isLoading = false;
-      if (backendResponse != null) {
-        final label = backendResponse.source == 'glm' ? '[AI]' : '[Fallback]';
-        result = '${backendResponse.asExplainabilityText()}\n\n$label';
-      } else {
-        result = '${_buildLocalFallbackResponse(item: item, amount: amount)}\n\n[Fallback]';
-      }
-    });
+      final expenseMaps = metrics.monthExpenses.map((expense) {
+        return {
+          'title': expense.note,
+          'amount': expense.amount,
+          'category': expense.category,
+        };
+      }).toList();
+
+      final backendResponse = await GLMService.getStructuredResponse(
+        userQuestion: 'Can I afford $item for RM${amount.toStringAsFixed(2)}?',
+        remainingBudget: remainingBudget,
+        expenses: expenseMaps,
+        featureType: 'affordability',
+        amount: amount,
+      );
+
+      setState(() {
+        _isLoading = false;
+        if (backendResponse != null) {
+          final label = backendResponse.source == 'glm' ? '[AI]' : '[Fallback]';
+          result = '${backendResponse.asExplainabilityText()}\n\n$label';
+        } else {
+          result = '${_buildLocalFallbackResponse(item: item, amount: amount, currentBudget: remainingBudget)}\n\n[Fallback]';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        result = ExplainabilityService.formatResponse(
+          answer: 'Unable to check affordability right now.',
+          reason: 'The system could not load the latest expense data.',
+          basedOn: 'Firestore expense records.',
+        );
+      });
+    }
   }
 
   String _buildLocalFallbackResponse({
     required String item,
     required double amount,
+    required double currentBudget,
   }) {
-    final remainingAfterPurchase = remainingBudget - amount;
+    final remainingAfterPurchase = currentBudget - amount;
 
-    if (amount <= remainingBudget * 0.25) {
+    if (amount <= currentBudget * 0.25) {
       return ExplainabilityService.formatResponse(
         answer: 'Yes - you can afford $item.',
         reason:
             'This expense is small compared to your remaining budget and does not significantly impact your finances.',
         basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
+            'RM${currentBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
       );
     }
 
-    if (amount <= remainingBudget) {
+    if (amount <= currentBudget) {
       return ExplainabilityService.formatResponse(
         answer:
             'Be careful - you can afford $item, but it takes a noticeable share of your budget.',
         reason:
             'This purchase takes a noticeable portion of your remaining budget and may limit future spending.',
         basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
+            'RM${currentBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, leaving RM${remainingAfterPurchase.toStringAsFixed(2)}.',
       );
     }
 
@@ -97,7 +116,7 @@ class _AffordabilityCheckerScreenState
       reason:
           'This expense exceeds your current remaining budget and may lead to overspending.',
       basedOn:
-          'RM${remainingBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, resulting in a deficit of RM${(-remainingAfterPurchase).toStringAsFixed(2)}.',
+          'RM${currentBudget.toStringAsFixed(2)} current budget, RM${amount.toStringAsFixed(2)} expense, resulting in a deficit of RM${(-remainingAfterPurchase).toStringAsFixed(2)}.',
     );
   }
 

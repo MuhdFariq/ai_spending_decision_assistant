@@ -79,13 +79,72 @@ def respond(data: RequestData):
     expenses = data.recent_expenses
     total_recent = sum(item.amount for item in expenses)
 
-    # 🔥 TRY REAL AI FIRST
+    if data.feature_type == "categorize":
+        try:
+            prompt = f"""
+            Categorize this expense: "{data.user_question}"
+
+            Choose ONLY one category from:
+            Food, Transport, Shopping, Bills, Others
+
+            Respond EXACTLY like:
+            Answer: <category>
+            Reason: <short reason>
+            BasedOn: <what you used>
+            """
+
+            glm_text = call_glm(prompt)
+            lines = [line.strip() for line in glm_text.split("\n") if line.strip()]
+
+            answer = ""
+            reason = ""
+            based_on = ""
+
+            for line in lines:
+                lower = line.lower()
+                if lower.startswith("answer:"):
+                    answer = line.split(":", 1)[1].strip()
+                elif lower.startswith("reason:"):
+                    reason = line.split(":", 1)[1].strip()
+                elif lower.startswith("basedon:"):
+                    based_on = line.split(":", 1)[1].strip()
+
+            return {
+                "answer": answer or "Others",
+                "reason": reason or "Categorized by GLM",
+                "basedOn": based_on or data.user_question,
+                "source": "glm",
+            }
+
+        except Exception as e:
+            print("CATEGORIZE ERROR:", str(e))
+
+            note = data.user_question.lower()
+
+            if any(word in note for word in ["lunch", "dinner", "breakfast", "mcd", "kfc", "meal", "food", "eat", "drink", "coffee", "nandos"]):
+                fallback_category = "Food"
+            elif any(word in note for word in ["grab", "bus", "train", "lrt", "mrt", "taxi", "ride", "petrol", "transport"]):
+                fallback_category = "Transport"
+            elif any(word in note for word in ["shirt", "shoes", "hat", "mall", "clothes", "shopping"]):
+                fallback_category = "Shopping"
+            elif any(word in note for word in ["bill", "electric", "water", "internet", "phone", "rent"]):
+                fallback_category = "Bills"
+            else:
+                fallback_category = "Others"
+
+            return {
+                "answer": fallback_category,
+                "reason": "Fallback categorization based on keywords",
+                "basedOn": data.user_question,
+                "source": "glm_failed",
+            }
+
     try:
         prompt = f"""
         User question: {data.user_question}
 
         Current remaining budget after recent expenses: RM{data.remaining_budget}
-        Expenses: {[(e.title, e.amount) for e in data.recent_expenses]}
+        Expenses: {[(e.title, e.amount, e.category) for e in data.recent_expenses]}
 
         Do not subtract recent expenses from the remaining budget again.
 
@@ -94,14 +153,9 @@ def respond(data: RequestData):
         Reason:
         BasedOn:
         """
+
         glm_text = call_glm(prompt)
-        print("RAW GLM TEXT:", repr(glm_text))
-
-        if not glm_text:
-            raise Exception("GLM returned empty response")
-
         lines = [line.strip() for line in glm_text.split("\n") if line.strip()]
-        print("PARSED LINES:", lines)
 
         answer = ""
         reason = ""
@@ -110,55 +164,42 @@ def respond(data: RequestData):
         i = 0
         while i < len(lines):
             line = lines[i]
-            lower_line = line.lower()
+            lower = line.lower()
 
-            if lower_line == "answer:":
-                if i + 1 < len(lines):
-                    answer = lines[i + 1]
-                    i += 1
-            elif lower_line.startswith("answer:"):
+            if lower == "answer:" and i + 1 < len(lines):
+                answer = lines[i + 1]
+                i += 1
+            elif lower.startswith("answer:"):
                 answer = line.split(":", 1)[1].strip()
-
-            elif lower_line == "reason:":
-                if i + 1 < len(lines):
-                    reason = lines[i + 1]
-                    i += 1
-            elif lower_line.startswith("reason:"):
+            elif lower == "reason:" and i + 1 < len(lines):
+                reason = lines[i + 1]
+                i += 1
+            elif lower.startswith("reason:"):
                 reason = line.split(":", 1)[1].strip()
-
-            elif lower_line == "basedon:":
-                if i + 1 < len(lines):
-                    based_on = lines[i + 1]
-                    i += 1
-            elif lower_line.startswith("basedon:"):
+            elif lower == "basedon:" and i + 1 < len(lines):
+                based_on = lines[i + 1]
+                i += 1
+            elif lower.startswith("basedon:"):
                 based_on = line.split(":", 1)[1].strip()
 
             i += 1
 
-        # fallback if parsing fails
-        if not answer:
-            answer = glm_text
-        if not reason:
-            reason = "Generated by GLM"
-        if not based_on:
-            based_on = f"Based on remaining budget RM{budget:.2f}"
-
-        print("PARSED ANSWER:", repr(answer))
-        print("PARSED REASON:", repr(reason))
-        print("PARSED BASEDON:", repr(based_on))
-
         return {
-            "answer": answer,
-            "reason": reason,
-            "basedOn": based_on,
-            "source": "glm"
+            "answer": answer or glm_text,
+            "reason": reason or "Generated by GLM",
+            "basedOn": based_on or f"Remaining budget RM{budget:.2f}",
+            "source": "glm",
         }
 
     except Exception as e:
         print("GLM ERROR:", str(e))
-        glm_failed = True
 
-    # 🔄 FALLBACK LOGIC
+    import re
+
+    question = data.user_question.lower()
+    match = re.search(r'(?:rm\s*)?(\d+)', question)
+    detected_amount = float(match.group(1)) if match else None
+
     if data.feature_type == "affordability":
         amount = data.amount
 
@@ -178,26 +219,52 @@ def respond(data: RequestData):
             f"and {len(expenses)} expense records."
         )
 
-    else:
-        if total_recent > budget and budget > 0:
-            answer = "Your recent spending may be high."
-            reason = "Recent expenses are large relative to your remaining budget."
-        elif budget <= 0:
-            answer = "Your budget appears exhausted."
-            reason = "No remaining budget is available."
+    elif detected_amount is not None:
+        if detected_amount <= budget:
+            answer = f"Yes, you can afford RM{detected_amount:.2f}."
+            reason = "The amount is within your remaining budget."
         else:
-            answer = "Your spending seems manageable."
-            reason = "You still have remaining budget."
+            answer = f"No, you cannot afford RM{detected_amount:.2f}."
+            reason = "The amount exceeds your remaining budget."
 
         based_on = (
-            f"Based on budget RM{budget:.2f}, "
-            f"recent expenses RM{total_recent:.2f}, "
-            f"{len(expenses)} records."
+            f"Based on remaining budget RM{budget:.2f} "
+            f"and requested amount RM{detected_amount:.2f}."
         )
+
+    else:
+        category_totals = {}
+
+        for item in expenses:
+            category = item.category if item.category else "Others"
+            category_totals[category] = category_totals.get(category, 0) + item.amount
+
+        if category_totals:
+            top_category = max(category_totals, key=category_totals.get)
+            top_amount = category_totals[top_category]
+
+            if "reduce" in question or "cut" in question or "save" in question:
+                answer = f"Reduce spending in {top_category} first."
+                reason = f"{top_category} is currently your highest spending category."
+            elif "overspending" in question or "over spending" in question:
+                answer = f"Your main overspending area appears to be {top_category}."
+                reason = f"{top_category} has the highest total spending among your recent expenses."
+            else:
+                answer = "Review your highest spending category first."
+                reason = f"{top_category} is the largest spending area right now."
+
+            based_on = (
+                f"RM{top_amount:.2f} spent in {top_category}, "
+                f"with RM{budget:.2f} remaining budget."
+            )
+        else:
+            answer = "There is not enough spending data to give advice yet."
+            reason = "No recent expenses were provided to analyse."
+            based_on = f"Remaining budget RM{budget:.2f}."
 
     return {
         "answer": answer,
         "reason": reason,
         "basedOn": based_on,
-        "source": "glm_failed" if 'glm_failed' in locals() else "fallback"
+        "source": "glm_failed",
     }
