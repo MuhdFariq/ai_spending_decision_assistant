@@ -84,8 +84,10 @@ def respond(data: RequestData):
         prompt = f"""
         User question: {data.user_question}
 
-        Budget: RM{data.remaining_budget}
+        Current remaining budget after recent expenses: RM{data.remaining_budget}
         Expenses: {[(e.title, e.amount) for e in data.recent_expenses]}
+
+        Do not subtract recent expenses from the remaining budget again.
 
         Respond EXACTLY in this format:
         Answer:

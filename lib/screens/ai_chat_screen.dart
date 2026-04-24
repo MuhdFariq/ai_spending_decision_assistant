@@ -184,15 +184,25 @@ class _AiChatScreenState extends State<AiChatScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Answer: $answer', style: const TextStyle(fontSize: 16)),
+        Text(
+          answer,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 8),
-        Text('Reason: $reason', style: const TextStyle(fontSize: 15)),
+        Text(
+          'Reason: ${reason.length > 180 ? '${reason.substring(0, 180)}...' : reason}',
+          style: const TextStyle(fontSize: 15),
+        ),
         const SizedBox(height: 8),
         Text('Based on: $basedOn', style: const TextStyle(fontSize: 15)),
         if (source != null && source.isNotEmpty) ...[
           const SizedBox(height: 10),
           Text(
-            'Source: $source',
+            source == 'glm'
+                ? 'AI response'
+                : source == 'glm_failed'
+                    ? 'AI fallback response'
+                    : 'System response',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ],

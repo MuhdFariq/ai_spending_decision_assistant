@@ -1,52 +1,92 @@
 import 'explainability_service.dart';
 
 class InsightService {
-
-  // simple rule-based responses used when AI API is not available
   static String generateFallbackResponse({
     required String text,
     required double remainingBudget,
     required List<Map<String, dynamic>> recentExpenses,
   }) {
     final lowerText = text.toLowerCase();
-    final expenseTitles = recentExpenses
-        .map((expense) => expense['title']?.toString() ?? '')
-        .where((title) => title.isNotEmpty)
-        .toList();
-
-    final foodExpenses = recentExpenses
-        .where((expense) => expense['category'] == 'Food')
-        .toList();
 
     final totalRecentSpending = recentExpenses.fold<double>(
       0.0,
-      (sum, expense) => sum + (expense['amount'] as double),
+      (sum, expense) => sum + ((expense['amount'] as num?)?.toDouble() ?? 0.0),
     );
 
-    final primaryTitle =
-        expenseTitles.isNotEmpty ? expenseTitles.first : 'recent expenses';
-    final secondaryTitle = expenseTitles.length > 3
-        ? expenseTitles[3]
-        : (expenseTitles.length > 1 ? expenseTitles[1] : primaryTitle);
-    final spendingExamples = expenseTitles.take(3).join(', ');
+    final categoryTotals = <String, double>{};
+    for (final expense in recentExpenses) {
+      final category = expense['category']?.toString() ?? 'Other';
+      final amount = ((expense['amount'] as num?)?.toDouble() ?? 0.0);
+      categoryTotals[category] = (categoryTotals[category] ?? 0.0) + amount;
+    }
 
-    if (lowerText.contains('why') && lowerText.contains('overspend')) {
-      return ExplainabilityService.formatResponse(
-        answer: 'You may be overspending mostly in food and entertainment.',
-        reason:
-            'You have ${foodExpenses.length} recent food purchases, and entertainment also takes a noticeable share of your recent spending.',
-        basedOn:
-            'RM${remainingBudget.toStringAsFixed(2)} remaining budget, RM${totalRecentSpending.toStringAsFixed(2)} recent spending, including items like $primaryTitle and $secondaryTitle.',
-      );
+    final sortedCategories = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final topCategory =
+        sortedCategories.isNotEmpty ? sortedCategories.first.key : 'recent spending';
+    final topAmount =
+        sortedCategories.isNotEmpty ? sortedCategories.first.value : 0.0;
+
+    double? requestedAmount;
+
+    // Supports: "RM20", "rm 20", and "can I afford 20"
+    final amountMatch = RegExp(
+      r'(?:rm\s*)?(\d+(\.\d+)?)',
+      caseSensitive: false,
+    ).firstMatch(text);
+
+    if (amountMatch != null) {
+      requestedAmount = double.tryParse(amountMatch.group(1)!);
     }
 
     if (lowerText.contains('afford')) {
+      if (requestedAmount == null) {
+        return ExplainabilityService.formatResponse(
+          answer: 'I need the purchase amount to judge affordability.',
+          reason: 'The question asks about affordability, but no RM amount was detected.',
+          basedOn: 'Remaining budget RM${remainingBudget.toStringAsFixed(2)}.',
+        );
+      }
+
+      final balanceAfter = remainingBudget - requestedAmount;
+
+      if (requestedAmount > remainingBudget) {
+        return ExplainabilityService.formatResponse(
+          answer: 'No, this purchase is not affordable right now.',
+          reason:
+              'RM${requestedAmount.toStringAsFixed(2)} is higher than your remaining budget of RM${remainingBudget.toStringAsFixed(2)}.',
+          basedOn:
+              'Purchase RM${requestedAmount.toStringAsFixed(2)}, remaining budget RM${remainingBudget.toStringAsFixed(2)}.',
+        );
+      }
+
+      if (balanceAfter < remainingBudget * 0.25) {
+        return ExplainabilityService.formatResponse(
+          answer: 'Be careful, you can afford it but it leaves little room.',
+          reason:
+              'After spending RM${requestedAmount.toStringAsFixed(2)}, you would only have RM${balanceAfter.toStringAsFixed(2)} left.',
+          basedOn:
+              'Purchase RM${requestedAmount.toStringAsFixed(2)}, remaining budget RM${remainingBudget.toStringAsFixed(2)}.',
+        );
+      }
+
       return ExplainabilityService.formatResponse(
-        answer: 'Be careful with this purchase.',
+        answer: 'Yes, this purchase looks affordable.',
         reason:
-            'Your remaining budget is RM${remainingBudget.toStringAsFixed(2)}, so extra spending gives you less room for upcoming needs.',
+            'After spending RM${requestedAmount.toStringAsFixed(2)}, you would still have RM${balanceAfter.toStringAsFixed(2)} remaining.',
         basedOn:
-            'Current remaining budget and ${recentExpenses.length} recent expenses.',
+            'Purchase RM${requestedAmount.toStringAsFixed(2)}, remaining budget RM${remainingBudget.toStringAsFixed(2)}.',
+      );
+    }
+
+    if (lowerText.contains('why') && lowerText.contains('overspend')) {
+      return ExplainabilityService.formatResponse(
+        answer: 'Your spending pressure is mainly from $topCategory.',
+        reason:
+            '$topCategory is your highest recent category at RM${topAmount.toStringAsFixed(2)}, which reduces your remaining flexibility even if you are not fully over budget.',
+        basedOn:
+            'Remaining budget RM${remainingBudget.toStringAsFixed(2)}, recent spending RM${totalRecentSpending.toStringAsFixed(2)}.',
       );
     }
 
@@ -54,31 +94,20 @@ class InsightService {
         lowerText.contains('cut down') ||
         lowerText.contains('save')) {
       return ExplainabilityService.formatResponse(
-        answer: 'You should consider reducing food and entertainment spending first.',
+        answer: 'Reduce $topCategory spending first.',
         reason:
-            'These categories appear most often in your recent transactions and are usually the easiest place to trim non-essential costs.',
+            '$topCategory is your largest recent spending category at RM${topAmount.toStringAsFixed(2)}, so reducing it will have the biggest immediate impact.',
         basedOn:
-            'Recent categories include Food, Transport, and Entertainment, with Food appearing most frequently.',
-      );
-    }
-
-    if (lowerText.contains('spending')) {
-      return ExplainabilityService.formatResponse(
-        answer: 'Your spending looks active, especially in day-to-day purchases.',
-        reason:
-            'Repeated small purchases can add up quickly, even when each one feels manageable.',
-        basedOn:
-            spendingExamples.isNotEmpty
-                ? 'Recent expenses such as $spendingExamples.'
-                : 'Your recent expense history.',
+            'Category totals from ${recentExpenses.length} recent expense records.',
       );
     }
 
     return ExplainabilityService.formatResponse(
-      answer:
-          'I can help with overspending analysis, affordability checks, and ways to reduce spending.',
-      reason: 'I can give better guidance when your question is more specific.',
-      basedOn: 'Current mock budget and recent expense data.',
+      answer: 'Your spending is within budget, but your remaining buffer is limited.',
+      reason:
+          'You have RM${remainingBudget.toStringAsFixed(2)} remaining, while recent spending totals RM${totalRecentSpending.toStringAsFixed(2)}.',
+      basedOn:
+          'Current budget and ${recentExpenses.length} recent expenses.',
     );
   }
 }
