@@ -4,7 +4,9 @@ import '../services/firestore_service.dart';
 import '../services/ai_service.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key});
+  const AddExpenseScreen({super.key, this.expensesStream});
+
+  final Stream<List<Expense>>? expensesStream;
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -184,7 +186,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               const Text("Recent History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const Divider(),
               StreamBuilder<List<Expense>>(
-                stream: FirestoreService.getExpenses(), 
+                stream: widget.expensesStream ?? FirestoreService.getExpenses(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
