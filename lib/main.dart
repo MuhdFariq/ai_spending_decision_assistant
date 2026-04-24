@@ -1,3 +1,5 @@
+import 'package:ai_spending_decision_assistant/screens/affordability_checker_screen.dart';
+import 'package:ai_spending_decision_assistant/screens/ai_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,16 +10,15 @@ import 'screens/home_shell.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await dotenv.load();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({
-    super.key,
-    this.home,
-    this.enableAnalytics = true,
-  });
+  const MyApp({super.key, this.home, this.enableAnalytics = true});
 
   static final AnalyticsService analyticsService = AnalyticsService();
   final Widget? home;
@@ -38,7 +39,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       navigatorObservers: navigatorObservers,
-      home: home ?? const HomeShell(),
+      home: home ?? const AiChatScreen(),
     );
   }
 }
