@@ -203,10 +203,12 @@ class _AiChatScreenState extends State<AiChatScreen> {
   Widget _buildSuggestionChip(String text) {
     return ActionChip(
       label: Text(text),
-      onPressed: () {
-        _messageController.text = text;
-        _sendMessage();
-      },
+      onPressed: _isLoading
+          ? null
+          : () {
+              _messageController.text = text;
+              _sendMessage();
+            },
     );
   }
 
