@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/expenses.dart';
 import '../services/firestore_service.dart';
-import '../services/ai_service.dart';
+import '../services/glm_service.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({super.key, this.expensesStream});
@@ -15,7 +15,6 @@ class AddExpenseScreen extends StatefulWidget {
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
-  final AiService _aiService = AiService();
   
   String _selectedCategory = 'Food'; 
   bool _isPredicting = false;
@@ -23,16 +22,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final List<String> _categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Others'];
 
   void _predictCategory() async {
-    print("DEBUG: Using API Key: ${_aiService.apiKey.substring(0, 5)}...");
     final note = _noteController.text;
     if (note.isEmpty) return;
 
     setState(() => _isPredicting = true);
 
     try {
-      final predicted = await _aiService.getAiResponse(
-        "Categorize this expense: '$note'. Reply with ONLY the category name from this list: Food, Transport, Shopping, Bills, Others."
+      final response = await GLMService.getStructuredResponse(
+        userQuestion: note,
+        remainingBudget: 0,
+        expenses: [],
+        featureType: 'categorize',
       );
+
+      final predicted = response?.answer ?? "";
 
       final cleanResult = predicted.trim().replaceAll('.', '');
       print("Predicted category: $cleanResult"); // Check this in terminal!
@@ -57,13 +60,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final double? amount = double.tryParse(_amountController.text);
     final String note = _noteController.text;
 
-    if (amount != null && note.isNotEmpty) {
-      final newExpense = Expense(
-        amount: amount,
-        note: note,
-        category: _selectedCategory,
-        date: DateTime.now(),
+    if (amount == null || amount <= 0 || note.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid amount and item')),
       );
+      return;
+    }
+
+    final newExpense = Expense(
+      amount: amount,
+      note: note,
+      category: _selectedCategory,
+      date: DateTime.now(),
+    );
 
       FirestoreService.addExpense(newExpense);
       
@@ -73,7 +82,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         const SnackBar(content: Text('Expense Saved!')),
       );
     }
-  }
 
   void _quickAdd(double amount, String category) {
     final newExpense = Expense(

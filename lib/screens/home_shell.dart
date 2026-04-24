@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/expenses.dart';
 import 'add_expense_screen.dart';
 import 'dashboard_screen.dart';
+import 'ai_chat_screen.dart';
+import 'affordability_checker_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({
@@ -24,6 +26,8 @@ class _HomeShellState extends State<HomeShell> {
   late final List<Widget> _screens = <Widget>[
     DashboardScreen(expensesStream: widget.dashboardExpensesStream),
     AddExpenseScreen(expensesStream: widget.addExpenseHistoryStream),
+    const AiChatScreen(),
+    const AffordabilityCheckerScreen(),
   ];
 
   @override
@@ -47,6 +51,16 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.add_circle_outline),
             selectedIcon: Icon(Icons.add_circle),
             label: 'Add Expense',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'AI Chat',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Afford',
           ),
         ],
       ),

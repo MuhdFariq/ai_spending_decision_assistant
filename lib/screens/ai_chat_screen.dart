@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-
 import '../services/explainability_service.dart';
 import '../services/glm_service.dart';
 import '../services/insight_service.dart';
-import '../services/mock_data_service.dart';
+import '../services/firestore_service.dart';
+import '../services/budget_service.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -40,8 +40,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   void initState() {
     super.initState();
-    remainingBudget = MockDataService.getRemainingBudget();
-    recentExpenses = MockDataService.getRecentExpenses();
+    remainingBudget = 0; // temporary
+    recentExpenses = [];
   }
 
   Future<void> _sendMessage() async {
@@ -64,19 +64,27 @@ class _AiChatScreenState extends State<AiChatScreen> {
     Map<String, String>? finalMessage;
 
     try {
-      await Future.delayed(const Duration(milliseconds: 800));
+      final expenses = await FirestoreService.getExpenses().first;
+      final metrics = BudgetService.buildDashboardMetrics(expenses);
+
+      final expenseMaps = metrics.monthExpenses.map((expense) {
+        return {
+          'title': expense.note,
+          'amount': expense.amount,
+          'category': expense.category,
+        };
+      }).toList();
 
       final glmResponse = await GLMService.getStructuredResponse(
         userQuestion: text,
-        remainingBudget: remainingBudget,
-        expenses: recentExpenses,
+        remainingBudget: metrics.remainingBudget,
+        expenses: expenseMaps,
         featureType: 'chat',
       );
 
       if (glmResponse == null) {
         throw Exception('GLM response was null');
       }
-
 
       finalMessage = {
         'sender': 'ai',
@@ -86,43 +94,29 @@ class _AiChatScreenState extends State<AiChatScreen> {
         'source': glmResponse.source,
       };
     } catch (e) {
-      final fallbackResponse = InsightService.generateFallbackResponse(
-        text: text,
-        remainingBudget: remainingBudget,
-        recentExpenses: recentExpenses,
-      );
-
-      final fallbackSections =
-          ExplainabilityService.parseResponseSections(fallbackResponse);
-
       finalMessage = {
         'sender': 'ai',
-        'answer':
-            fallbackSections?['answer'] ??
-            'I can help with spending and affordability guidance.',
-        'reason': fallbackSections?['reason'] ?? 'Local fallback logic was used.',
-        'basedOn':
-            fallbackSections?['basedOn'] ??
-            'Current mock budget and recent expense data.',
+        'answer': 'Unable to generate a full AI response right now.',
+        'reason': 'The system could not load current data or contact the AI service.',
+        'basedOn': 'Firestore expense records and backend AI service status.',
         'source': 'glm_failed',
       };
     } finally {
-      if (!mounted) return;
+      if (mounted) {
+        setState(() {
+          if (_messages.isNotEmpty && _messages.last['source'] == 'loading') {
+            _messages.removeLast();
+          }
 
-      setState(() {
-        if (_messages.isNotEmpty && _messages.last['source'] == 'loading') {
-        _messages.removeLast();
+          _isLoading = false;
+
+          if (finalMessage != null) {
+            _messages.add(finalMessage);
+          }
+        });
       }
-
-        _isLoading = false;
-
-        if (finalMessage != null) {
-          _messages.add(finalMessage!);
-        }
-      });
     }
   }
-
   @override
   void dispose() {
     _messageController.dispose();
@@ -187,7 +181,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Why: ${reason.length > 180 ? '${reason.substring(0, 180)}...' : reason}',
+          'Why: ${reason.length > 300 ? '${reason.substring(0, 300)}...' : reason}',
           style: const TextStyle(fontSize: 15),
         ),
         const SizedBox(height: 8),
