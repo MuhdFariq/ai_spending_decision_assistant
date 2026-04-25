@@ -67,7 +67,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
       final expenses = await FirestoreService.getExpenses().first;
       final metrics = BudgetService.buildDashboardMetrics(expenses);
 
-      final expenseMaps = metrics.monthExpenses.map((expense) {
+      final recentExpensesForAI = metrics.monthExpenses
+          .where((expense) => expense.amount > 0)
+          .take(4)
+          .map((expense) {
         return {
           'title': expense.note,
           'amount': expense.amount,
@@ -78,7 +81,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       final glmResponse = await GLMService.getStructuredResponse(
         userQuestion: text,
         remainingBudget: metrics.remainingBudget,
-        expenses: expenseMaps,
+        expenses: recentExpensesForAI,
         featureType: 'chat',
       );
 
