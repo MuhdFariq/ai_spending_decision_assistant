@@ -76,7 +76,7 @@ class GLMService {
               headers: const {'Content-Type': 'application/json'},
               body: jsonEncode(payload),
             )
-            .timeout(const Duration(seconds: 40));
+            .timeout(const Duration(seconds: 7));
 
         if (response.statusCode != 200) {
           continue;

@@ -56,7 +56,7 @@ def call_glm(prompt: str):
 
     print("CALL_GLM TEST PAYLOAD:", payload)
 
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response = requests.post(url, headers=headers, json=payload, timeout=5)
 
     print("GLM STATUS CODE:", response.status_code)
     print("GLM RESPONSE TEXT:", response.text)
@@ -209,6 +209,14 @@ def respond(data: RequestData):
     if "recent" in question and ("spending" in question or "expense" in question):
         recent_items = expenses[:4]
 
+        if not recent_items:
+            return {
+                "answer": "No recent expenses found.",
+                "reason": "There are no expenses recorded yet.",
+                "basedOn": "Empty expense list",
+                "source": "deterministic",
+            }
+
         answer = "\n".join(
             f"{i+1}. {item.title} - RM{item.amount:.2f} ({item.category or 'Others'})"
             for i, item in enumerate(recent_items)
@@ -220,7 +228,7 @@ def respond(data: RequestData):
             "basedOn": "Recent expenses list",
             "source": "deterministic",
         }
-        
+
     match = re.search(r'(?:rm\s*)?(\d+(?:\.\d+)?)', question)
     detected_amount = float(match.group(1)) if match else None
 
