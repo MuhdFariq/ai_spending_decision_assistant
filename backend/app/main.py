@@ -56,7 +56,7 @@ def call_glm(prompt: str):
 
     print("CALL_GLM TEST PAYLOAD:", payload)
 
-    response = requests.post(url, headers=headers, json=payload, timeout=5)
+    response = requests.post(url, headers=headers, json=payload, timeout=12)
 
     print("GLM STATUS CODE:", response.status_code)
     print("GLM RESPONSE TEXT:", response.text)
