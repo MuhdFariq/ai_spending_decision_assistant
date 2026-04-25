@@ -92,7 +92,7 @@ class _AffordabilityCheckerScreenState
 
     if (amount <= currentBudget * 0.25) {
       return ExplainabilityService.formatResponse(
-        answer: 'Yes - you can afford $item.',
+        answer: "Yes - you can afford $item.",
         reason:
             'This expense is small compared to your remaining budget and does not significantly impact your finances.',
         basedOn:
@@ -103,7 +103,7 @@ class _AffordabilityCheckerScreenState
     if (amount <= currentBudget) {
       return ExplainabilityService.formatResponse(
         answer:
-            'Be careful - you can afford $item, but it takes a noticeable share of your budget.',
+            "Be careful - you can afford $item, but it takes a noticeable share of your budget.",
         reason:
             'This purchase takes a noticeable portion of your remaining budget and may limit future spending.',
         basedOn:
@@ -112,7 +112,7 @@ class _AffordabilityCheckerScreenState
     }
 
     return ExplainabilityService.formatResponse(
-      answer: 'No - you may not be able to afford $item right now.',
+      answer: "No - you may not be able to afford $item right now.",
       reason:
           'This expense exceeds your current remaining budget and may lead to overspending.',
       basedOn:

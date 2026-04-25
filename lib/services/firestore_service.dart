@@ -6,11 +6,7 @@ class FirestoreService {
 
   // Save a new expense
   static Future<void> addExpense(Expense expense) async {
-    try {
-      await _firestore.collection('expenses').add(expense.toMap());
-    } catch (e) {
-      print("Error adding expense: $e");
-    }
+    await _firestore.collection('expenses').add(expense.toMap());
   }
 
   // Get a list of expenses for the Dashboard (Member B)

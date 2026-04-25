@@ -56,7 +56,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  void _saveExpense() {
+  Future<void> _saveExpense() async {
     final double? amount = double.tryParse(_amountController.text);
     final String note = _noteController.text;
 
@@ -74,16 +74,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date: DateTime.now(),
     );
 
-      FirestoreService.addExpense(newExpense);
-      
+    try {
+      await FirestoreService.addExpense(newExpense);
       _amountController.clear();
       _noteController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Expense Saved!')),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save expense. Please try again.')),
+      );
+    }
     }
 
-  void _quickAdd(double amount, String category) {
+  Future<void> _quickAdd(double amount, String category) async {
     final newExpense = Expense(
       amount: amount,
       note: "Quick Add", 
@@ -91,11 +96,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date: DateTime.now(),
     );
 
-    FirestoreService.addExpense(newExpense);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Quick Added RM${amount.toStringAsFixed(2)} for $category!')),
-    );
+    try {
+      await FirestoreService.addExpense(newExpense);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Quick Added RM${amount.toStringAsFixed(2)} for $category!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save expense. Please try again.')),
+      );
+    }
   }
 
   @override

@@ -56,7 +56,7 @@ def call_glm(prompt: str):
 
     print("CALL_GLM TEST PAYLOAD:", payload)
 
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response = requests.post(url, headers=headers, json=payload, timeout=12)
 
     print("GLM STATUS CODE:", response.status_code)
     print("GLM RESPONSE TEXT:", response.text)
@@ -77,6 +77,10 @@ def call_glm(prompt: str):
 def respond(data: RequestData):
     budget = data.remaining_budget
     expenses = data.recent_expenses
+    print("=== AI REQUEST ===")
+    print("QUESTION:", data.user_question)
+    print("BUDGET:", data.remaining_budget)
+    print("EXPENSES:", [(e.title, e.amount, e.category) for e in expenses])
     total_recent = sum(item.amount for item in expenses)
 
     if data.feature_type == "categorize":
@@ -106,7 +110,7 @@ def respond(data: RequestData):
                     answer = line.split(":", 1)[1].strip()
                 elif lower.startswith("reason:"):
                     reason = line.split(":", 1)[1].strip()
-                elif lower.startswith("basedon:"):
+                elif lower.startswith("basedon:") or lower.startswith("based on:"):
                     based_on = line.split(":", 1)[1].strip()
 
             return {
@@ -144,8 +148,11 @@ def respond(data: RequestData):
         User question: {data.user_question}
 
         Current remaining budget after recent expenses: RM{data.remaining_budget}
-        Expenses: {[(e.title, e.amount, e.category) for e in data.recent_expenses]}
+        Recent expenses, already sorted from newest to oldest:
+        {[(e.title, e.amount, e.category) for e in data.recent_expenses]}
 
+        If the user asks for recent spending, use the first items in this list.
+        Do not reverse the list.
         Do not subtract recent expenses from the remaining budget again.
 
         Respond EXACTLY in this format:
@@ -176,10 +183,10 @@ def respond(data: RequestData):
                 i += 1
             elif lower.startswith("reason:"):
                 reason = line.split(":", 1)[1].strip()
-            elif lower == "basedon:" and i + 1 < len(lines):
+            elif (lower == "basedon:" or lower == "based on:") and i + 1 < len(lines):
                 based_on = lines[i + 1]
                 i += 1
-            elif lower.startswith("basedon:"):
+            elif lower.startswith("basedon:") or lower.startswith("based on:"):
                 based_on = line.split(":", 1)[1].strip()
 
             i += 1
@@ -197,7 +204,32 @@ def respond(data: RequestData):
     import re
 
     question = data.user_question.lower()
-    match = re.search(r'(?:rm\s*)?(\d+)', question)
+
+    # Handle "recent spending" deterministically (not via AI)
+    if "recent" in question and ("spending" in question or "expense" in question):
+        recent_items = expenses[:4]
+
+        if not recent_items:
+            return {
+                "answer": "No recent expenses found.",
+                "reason": "There are no expenses recorded yet.",
+                "basedOn": "Empty expense list",
+                "source": "deterministic",
+            }
+
+        answer = "\n".join(
+            f"{i+1}. {item.title} - RM{item.amount:.2f} ({item.category or 'Others'})"
+            for i, item in enumerate(recent_items)
+        )
+
+        return {
+            "answer": answer,
+            "reason": "These are the most recent expenses provided by the app, sorted from newest to oldest.",
+            "basedOn": "Recent expenses list",
+            "source": "deterministic",
+        }
+
+    match = re.search(r'(?:rm\s*)?(\d+(?:\.\d+)?)', question)
     detected_amount = float(match.group(1)) if match else None
 
     if data.feature_type == "affordability":

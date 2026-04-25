@@ -17,12 +17,17 @@ class Expense {
 
   // This converts Firebase data (Map) into a Flutter "Expense" object
   factory Expense.fromMap(Map<String, dynamic> data, String documentId) {
+    final dynamic rawDate = data['date'];
+    final DateTime parsedDate = rawDate is Timestamp
+        ? rawDate.toDate()
+        : DateTime.now();
+
     return Expense(
       id: documentId,
       amount: (data['amount'] ?? 0).toDouble(),
       category: data['category'] ?? 'Uncategorized',
       note: data['note'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
+      date: parsedDate,
     );
   }
 
