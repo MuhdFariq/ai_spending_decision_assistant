@@ -1,16 +1,16 @@
 # 💰 AI Spending Assistant
 A student-focused budget app with AI insights.
 
+# Project Deliverables:
+1. Link to pitching video:
+https://drive.google.com/file/d/1FPK7LpbiYWau0nt7YmRTv97-jbGUd0zM/view?usp=sharing
+2. Link to documentations:
+https://drive.google.com/drive/folders/177c7g5MWCJEc39ByjOlVIXopla1HQlap?usp=sharing 
+
 ## 🏗 Project Architecture
 - **Models (`lib/models`)**: Shared data structures (Expense, User).
-- **Services (`lib/services`)**: Logic for Auth, Firestore, Z.ai, and Analytics.
+- **Services (`lib/services`)**: Firestore, Z.a.
 - **Screens (`lib/screens`)**: UI pages for each member's feature.
-
-## 👥 Team Tasks
-- **Member A**: AI Brain & Chat Interface
-- **Member B**: Dashboard & Budget Math
-- **Member C**: Expense Entry & Firestore Logic
-- **Member D (Lead)**: Insights, Validation & Setup
 
 ## 🚀 Getting Started for Team Members
 To run this project locally, follow these steps:
