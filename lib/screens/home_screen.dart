@@ -6,11 +6,19 @@ import 'ai_chat_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  // Theme Constants
+  static const Color gold = Color(0xFFFFD700);
+  static const Color charcoal = Color(0xFF1E1E1E);
+  static const Color midnight = Color(0xFF121212);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: midnight, // Applied Midnight background
       appBar: AppBar(
-        title: const Text('AI Spending Assistant'),
+        title: const Text('AI Spending Assistant', style: TextStyle(color: gold)),
+        backgroundColor: charcoal,
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -23,12 +31,16 @@ class HomeScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
+                color: Colors.white, // Applied white for readability
               ),
             ),
             const SizedBox(height: 10),
             const Text(
               'Make smarter financial decisions using AI insights.',
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(
+                fontSize: 16, 
+                color: Colors.white70, // Applied subtle white
+              ),
             ),
             const SizedBox(height: 30),
             _buildFeatureCard(
@@ -76,9 +88,9 @@ class HomeScreen extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.deepPurple.shade50,
+          color: charcoal, // Applied Charcoal card background
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.deepPurple.shade200),
+          border: Border.all(color: gold.withOpacity(0.3)), // Applied Gold border
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,10 +100,16 @@ class HomeScreen extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: gold, // Applied Gold for feature titles
               ),
             ),
             const SizedBox(height: 8),
-            Text(description),
+            Text(
+              description,
+              style: const TextStyle(
+                color: Colors.white70, // Applied subtle text color
+              ),
+            ),
           ],
         ),
       ),

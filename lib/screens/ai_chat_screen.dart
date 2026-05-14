@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/explainability_service.dart';
-import '../services/glm_service.dart';
-import '../services/insight_service.dart';
+import '../services/ai_service.dart';
 import '../services/firestore_service.dart';
 import '../services/budget_service.dart';
 
@@ -13,16 +11,19 @@ class AiChatScreen extends StatefulWidget {
 }
 
 class _AiChatScreenState extends State<AiChatScreen> {
+  // Midnight Gold Palette
+  final Color gold = const Color(0xFFFFD700);
+  final Color charcoal = const Color(0xFF1E1E1E);
+  final Color midnight = const Color(0xFF121212);
 
   final List<String> _loadingMessages = [
-  'Reviewing your recent spending...',
-  'Checking your budget impact...',
-  'Preparing your explanation...',
+    'Reviewing your recent spending...',
+    'Checking your budget impact...',
+    'Preparing your explanation...',
   ];
   final TextEditingController _messageController = TextEditingController();
 
   bool _isLoading = false;
-
   late final double remainingBudget;
   late final List<Map<String, dynamic>> recentExpenses;
 
@@ -30,9 +31,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
     {
       'sender': 'ai',
       'answer': 'Hi! Ask me about your spending, budget, or affordability.',
-      'reason':
-          'I can explain recommendations using your budget and recent expenses.',
-      'basedOn': 'Your current mock budget profile.',
+      'reason': 'I can explain recommendations using your budget and recent expenses.',
+      'basedOn': 'Your current budget profile.',
       'source': 'system',
     },
   ];
@@ -40,20 +40,20 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   void initState() {
     super.initState();
-    remainingBudget = 0; // temporary
+    remainingBudget = 0;
     recentExpenses = [];
   }
 
+  // LOGIC PRESERVED FROM SOURCE
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-
     if (text.isEmpty || _isLoading) return;
 
+    // 1. Update UI to show user message and loading state
     setState(() {
       _messages.add({'sender': 'user', 'text': text});
       _messageController.clear();
       _isLoading = true;
-
       _messages.add({
         'sender': 'ai',
         'text': _loadingMessages[0],
@@ -61,103 +61,105 @@ class _AiChatScreenState extends State<AiChatScreen> {
       });
     });
 
-    Map<String, String>? finalMessage;
+    Map<String, String>? finalAiMessage;
 
     try {
-      final expenses = await FirestoreService.getExpenses().first;
-      final metrics = BudgetService.buildDashboardMetrics(expenses);
+      // 2. Fetch fresh financial data
+      // We get the stream from Firestore and take the first available snapshot
+      final expenseSnap = await FirestoreService.getExpenses().first;
+      
+      // 3. Use BudgetService to calculate current metrics (Remaining Budget, etc.)
+      final metrics = BudgetService.buildDashboardMetrics(expenseSnap);
 
+      // 4. Prepare a simplified list of recent expenses for the AI context
       final recentExpensesForAI = metrics.monthExpenses
-          .where((expense) => expense.amount > 0)
-          .take(4)
-          .map((expense) {
-        return {
-          'title': expense.note,
-          'amount': expense.amount,
-          'category': expense.category,
-        };
-      }).toList();
+          .take(5) // Just the top 5 to keep the prompt small and fast
+          .map((e) => {
+                'title': e.note,
+                'amount': e.amount,
+                'category': e.category,
+              })
+          .toList();
 
-      final glmResponse = await GLMService.getStructuredResponse(
+      // 5. Call the Unified AI Service
+      // This replaces GLMService and talks directly to the ILMU API
+      finalAiMessage = await AiService().getChatResponse(
         userQuestion: text,
         remainingBudget: metrics.remainingBudget,
         expenses: recentExpensesForAI,
-        featureType: 'chat',
       );
 
-      if (glmResponse == null) {
-        throw Exception('GLM response was null');
-      }
-
-      finalMessage = {
-        'sender': 'ai',
-        'answer': glmResponse.answer,
-        'reason': glmResponse.reason,
-        'basedOn': glmResponse.basedOn,
-        'source': glmResponse.source,
-      };
     } catch (e) {
-      finalMessage = {
+      debugPrint("Chat Error: $e");
+      // Fallback UI message if something goes wrong
+      finalAiMessage = {
         'sender': 'ai',
-        'answer': 'Unable to generate a full AI response right now.',
-        'reason': 'The system could not load current data or contact the AI service.',
-        'basedOn': 'Firestore expense records and backend AI service status.',
-        'source': 'glm_failed',
+        'answer': 'I encountered a connection issue.',
+        'reason': 'The AI service is currently unreachable.',
+        'basedOn': 'System Status',
+        'source': 'error',
       };
     } finally {
+      // 6. Final UI Update
       if (mounted) {
         setState(() {
+          // Remove the "Loading..." bubble
           if (_messages.isNotEmpty && _messages.last['source'] == 'loading') {
             _messages.removeLast();
           }
-
+          
           _isLoading = false;
-
-          if (finalMessage != null) {
-            _messages.add(finalMessage);
+          
+          // Add the actual AI response to the chat list
+          if (finalAiMessage != null) {
+            _messages.add(finalAiMessage!);
           }
         });
       }
     }
   }
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
 
+  // REFINED CHAT BUBBLE STRUCTURE
   Widget _buildMessageBubble(Map<String, String> message) {
     final isUser = message['sender'] == 'user';
+    final isLoading = message['source'] == 'loading';
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(14),
-        constraints: const BoxConstraints(maxWidth: 320),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
+        constraints: const BoxConstraints(maxWidth: 300),
         decoration: BoxDecoration(
-          color: isUser ? Colors.deepPurple.shade100 : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isUser
-                ? Colors.deepPurple.shade200
-                : Colors.grey.shade300,
+          color: isUser ? gold : charcoal,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isUser ? 20 : 0),
+            bottomRight: Radius.circular(isUser ? 0 : 20),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: !isUser ? Border.all(color: gold.withOpacity(0.2)) : null,
         ),
         child: isUser
             ? Text(
                 message['text'] ?? '',
-                style: const TextStyle(fontSize: 16, height: 1.4),
+                style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w500),
               )
-            : _buildAiResponseContent(message),
+            : isLoading 
+                ? _buildLoadingIndicator(message['text'] ?? '')
+                : _buildAiResponseContent(message),
       ),
+    );
+  }
+
+  Widget _buildLoadingIndicator(String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: gold)),
+        const SizedBox(width: 12),
+        Text(text, style: TextStyle(color: gold.withOpacity(0.8), fontSize: 13, fontStyle: FontStyle.italic)),
+      ],
     );
   }
 
@@ -165,41 +167,21 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final answer = message['answer'];
     final reason = message['reason'];
     final basedOn = message['basedOn'];
-    final text = message['text'];
-    final source = message['source'];
 
-    if (answer == null || reason == null || basedOn == null) {
-      return Text(
-        text ?? '',
-        style: const TextStyle(fontSize: 16, height: 1.4),
-      );
+    if (answer == null) {
+      return Text(message['text'] ?? '', style: const TextStyle(color: Colors.white, height: 1.4));
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          answer,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Why: ${reason.length > 300 ? '${reason.substring(0, 300)}...' : reason}',
-          style: const TextStyle(fontSize: 15),
-        ),
-        const SizedBox(height: 8),
-        Text('Based on: $basedOn', style: const TextStyle(fontSize: 15)),
-        if (source != null && source.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(
-            source == 'glm'
-                ? 'AI response'
-                : source == 'glm_failed'
-                    ? 'AI fallback response'
-                    : 'System response',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-          ),
-        ],
+        Text(answer, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const Divider(color: Colors.white10, height: 20),
+        Text("WHY", style: TextStyle(color: gold.withOpacity(0.7), fontWeight: FontWeight.bold, fontSize: 10)),
+        Text(reason!, style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4)),
+        const SizedBox(height: 12),
+        Text("BASED ON", style: TextStyle(color: gold.withOpacity(0.7), fontWeight: FontWeight.bold, fontSize: 10)),
+        Text(basedOn!, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
       ],
     );
   }
@@ -207,98 +189,118 @@ class _AiChatScreenState extends State<AiChatScreen> {
   Widget _buildSuggestionChip(String text) {
     return ActionChip(
       label: Text(text),
-      onPressed: _isLoading
-          ? null
-          : () {
-              _messageController.text = text;
-              _sendMessage();
-            },
+      backgroundColor: charcoal,
+      labelStyle: TextStyle(color: gold, fontSize: 12),
+      side: BorderSide(color: gold.withOpacity(0.3)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onPressed: _isLoading ? null : () {
+        _messageController.text = text;
+        _sendMessage();
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: midnight,
       appBar: AppBar(
         title: const Text('Spending Assistant'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 12),
+      body: Column(
+        children: [
+          // 1. INSTRUCTION BOX
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.deepPurple.shade50,
+                color: charcoal.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.deepPurple.shade100),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
               ),
               child: const Text(
-                'Ask questions like "Why am I overspending?", "Can I afford RM20?", or "What should I reduce?"',
-                style: TextStyle(fontSize: 15),
+                'Ask about your overspending, specific RM amounts, or budget reductions.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.white60),
               ),
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+          ),
+          const SizedBox(height: 12),
+
+          // 2. SUGGESTION ROW
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
-                _buildSuggestionChip('why am I overspending'),
-                _buildSuggestionChip('can I afford RM20'),
-                _buildSuggestionChip('what should I reduce'),
+                _buildSuggestionChip('Why am I overspending?'),
+                const SizedBox(width: 8),
+                _buildSuggestionChip('Can I afford RM20?'),
+                const SizedBox(width: 8),
+                _buildSuggestionChip('What should I reduce?'),
               ],
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.only(top: 8),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  return _buildMessageBubble(_messages[index]);
-                },
-              ),
+          ),
+
+          // 3. CHAT MESSAGES
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) => _buildMessageBubble(_messages[index]),
             ),
-            const SizedBox(height: 8),
-            Row(
+          ),
+
+          // 4. INPUT AREA
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            decoration: BoxDecoration(
+              color: charcoal,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _messageController,
+                    style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Ask about your budget or spending...',
+                      hintText: 'Type a message...',
+                      hintStyle: TextStyle(color: Colors.white24),
                       filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                      fillColor: midnight,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _sendMessage,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 18,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _isLoading ? null : _sendMessage,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: gold, borderRadius: BorderRadius.circular(16)),
+                    child: Icon(Icons.send_rounded, color: Colors.black, size: 24),
                   ),
-                  child: const Text('Ask'),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
   }
 }

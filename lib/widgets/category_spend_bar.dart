@@ -12,6 +12,10 @@ class CategorySpendBar extends StatelessWidget {
   final double amount;
   final double totalSpent;
 
+  // Theme Constants
+  static const Color gold = Color(0xFFFFD700);
+  static const Color midnight = Color(0xFF121212);
+
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
@@ -30,12 +34,16 @@ class CategorySpendBar extends StatelessWidget {
                 category,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
+                  color: Colors.white, // Updated for dark theme
                 ),
               ),
             ),
             Text(
               'RM${amount.toStringAsFixed(2)}',
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: gold, // Highlighted amount in gold
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -45,31 +53,34 @@ class CategorySpendBar extends StatelessWidget {
           child: LinearProgressIndicator(
             minHeight: 10,
             value: ratio,
-            backgroundColor: accentColor.withValues(alpha: 0.12),
+            backgroundColor: gold.withOpacity(0.1), // Updated background
             valueColor: AlwaysStoppedAnimation<Color>(accentColor),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           '${(ratio * 100).toStringAsFixed(1)}% of current month spending',
-          style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white54, // Updated for visibility
+          ),
         ),
       ],
     );
   }
 
   static Color _colorForCategory(String category) {
+    // Variations of gold/yellow for different categories
     switch (category) {
       case 'Food':
-        return Colors.deepPurple;
+        return gold;
       case 'Transport':
-        return Colors.deepPurple.shade400;
+        return const Color(0xFFFFE44D); // Lighter gold
       case 'Shopping':
-        return Colors.deepPurple.shade300;
+        return const Color(0xFFD4AF37); // Metallic gold
       case 'Bills':
-        return Colors.deepPurple.shade500;
+        return const Color(0xFFFFC107); // Amber gold
       default:
-        return Colors.deepPurple;
+        return gold;
     }
   }
 }

@@ -7,6 +7,11 @@ class RiskIndicatorCard extends StatelessWidget {
 
   final DashboardMetrics metrics;
 
+  // Theme Constants
+  static const Color gold = Color(0xFFFFD700);
+  static const Color charcoal = Color(0xFF1E1E1E);
+  static const Color midnight = Color(0xFF121212);
+
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
@@ -14,16 +19,16 @@ class RiskIndicatorCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: charcoal, // Swapped white for charcoal
         borderRadius: BorderRadius.circular(28),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.deepPurple.withValues(alpha: 0.12),
+            color: Colors.black.withOpacity(0.2), // Darker shadow
             blurRadius: 16,
             offset: const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: style.baseColor.withValues(alpha: 0.18)),
+        border: Border.all(color: style.baseColor.withOpacity(0.18)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -32,7 +37,7 @@ class RiskIndicatorCard extends StatelessWidget {
           children: <Widget>[
             CircleAvatar(
               radius: 24,
-              backgroundColor: Colors.deepPurple.shade50,
+              backgroundColor: style.baseColor.withOpacity(0.1), // Themed background
               child: Icon(style.icon, color: style.baseColor),
             ),
             const SizedBox(width: 16),
@@ -51,7 +56,7 @@ class RiskIndicatorCard extends StatelessWidget {
                   Text(
                     _messageFor(metrics),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.black87,
+                      color: Colors.white70, // Lightened text for dark background
                     ),
                   ),
                 ],
@@ -79,19 +84,19 @@ class RiskIndicatorCard extends StatelessWidget {
       case SpendingRiskLevel.safe:
         return const _RiskCardStyle(
           label: 'Status:',
-          baseColor: Colors.deepPurple,
+          baseColor: gold, // Primary Gold
           icon: Icons.verified_outlined,
         );
       case SpendingRiskLevel.warning:
         return const _RiskCardStyle(
           label: 'Status:',
-          baseColor: Color(0xFF7E57C2),
+          baseColor: Color(0xFFFFB300), // Amber Gold
           icon: Icons.warning_amber_rounded,
         );
       case SpendingRiskLevel.overspending:
         return const _RiskCardStyle(
           label: 'Status:',
-          baseColor: Color(0xFF5E35B1),
+          baseColor: Color(0xFFFF5252), // Soft Red for functional urgency
           icon: Icons.error_outline,
         );
     }

@@ -17,17 +17,27 @@ class DashboardScreen extends StatelessWidget {
   final double monthlyBudget;
   final Stream<List<Expense>>? expensesStream;
 
+  // Theme Constants
+  static const Color gold = Color(0xFFFFD700);
+  static const Color charcoal = Color(0xFF1E1E1E);
+  static const Color midnight = Color(0xFF121212);
+
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      backgroundColor: midnight, // Changed from default
+      appBar: AppBar(
+        title: const Text('Dashboard', style: TextStyle(color: gold)),
+        backgroundColor: charcoal,
+        iconTheme: const IconThemeData(color: gold),
+      ),
       body: StreamBuilder<List<Expense>>(
         stream: expensesStream ?? FirestoreService.getExpenses(),
         builder: (BuildContext context, AsyncSnapshot<List<Expense>> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: gold));
           }
 
           if (snapshot.hasError) {
@@ -36,7 +46,7 @@ class DashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   'Unable to load dashboard data right now.',
-                  style: theme.textTheme.bodyLarge,
+                  style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -50,15 +60,12 @@ class DashboardScreen extends StatelessWidget {
           );
           final List<_DashboardAlert> alerts = _buildAlerts(metrics);
           final List<MapEntry<String, double>> sortedCategories =
-              metrics.categorySpending.entries.toList()..sort((
-                MapEntry<String, double> left,
-                MapEntry<String, double> right,
-              ) {
-                return right.value.compareTo(left.value);
-              });
+              metrics.categorySpending.entries.toList()
+                ..sort((left, right) => right.value.compareTo(left.value));
 
           return RefreshIndicator(
             onRefresh: () async {},
+            color: gold,
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: <Widget>[
@@ -66,13 +73,14 @@ class DashboardScreen extends StatelessWidget {
                   'Spending Decision Assistant',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
+                    color: Colors.white, // Changed
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Tracking ${metrics.monthExpenses.length} expense${metrics.monthExpenses.length == 1 ? '' : 's'} this month against a demo budget of RM${monthlyBudget.toStringAsFixed(0)}.',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.black54,
+                    color: Colors.white54, // Changed
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -86,7 +94,7 @@ class DashboardScreen extends StatelessWidget {
                       label: 'Spent This Month',
                       value: _formatCurrency(metrics.totalSpent),
                       caption: 'Current month total',
-                      accentColor: Colors.deepPurple,
+                      accentColor: gold, // Changed
                       icon: Icons.account_balance_wallet_outlined,
                     ),
                     DashboardMetricCard(
@@ -95,14 +103,14 @@ class DashboardScreen extends StatelessWidget {
                       caption: metrics.remainingBudget >= 0
                           ? 'Still available'
                           : 'Over budget already',
-                      accentColor: Colors.deepPurple,
+                      accentColor: gold, // Changed
                       icon: Icons.savings_outlined,
                     ),
                     DashboardMetricCard(
                       label: 'Projected Balance',
                       value: _formatCurrency(metrics.projectedEndBalance),
                       caption: 'Month-end forecast',
-                      accentColor: Colors.deepPurple,
+                      accentColor: gold, // Changed
                       icon: Icons.trending_up,
                     ),
                   ],
@@ -110,14 +118,13 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 _SectionCard(
                   title: 'Prediction',
-                  subtitle:
-                      'Formula-based outlook using current month spending pace.',
+                  subtitle: 'Formula-based outlook using current month spending pace.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
                         metrics.forecastMessage,
-                        style: theme.textTheme.bodyLarge,
+                        style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white), // Changed
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -132,9 +139,7 @@ class DashboardScreen extends StatelessWidget {
                           Expanded(
                             child: _PredictionStat(
                               label: 'Days until depleted',
-                              value:
-                                  metrics.daysUntilDepleted?.toString() ??
-                                  'Safe',
+                              value: metrics.daysUntilDepleted?.toString() ?? 'Safe',
                             ),
                           ),
                         ],
@@ -145,16 +150,16 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _SectionCard(
                   title: 'Smart Alerts',
-                  subtitle:
-                      'Local alerts based on budget pace and remaining room.',
+                  subtitle: 'Local alerts based on budget pace and remaining room.',
                   child: alerts.isEmpty
                       ? const Text(
                           'No active alerts. Spending is within the current budget pace.',
+                          style: TextStyle(color: Colors.white60), // Changed
                         )
                       : Column(
                           children: alerts
                               .map(
-                                (_DashboardAlert alert) => Padding(
+                                (alert) => Padding(
                                   padding: const EdgeInsets.only(bottom: 10),
                                   child: _AlertTile(alert: alert),
                                 ),
@@ -165,12 +170,11 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _SectionCard(
                   title: 'Spending By Category',
-                  subtitle:
-                      'Current month category totals and share of spending.',
+                  subtitle: 'Current month category totals and share of spending.',
                   child: Column(
                     children: sortedCategories
                         .map(
-                          (MapEntry<String, double> entry) => Padding(
+                          (entry) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: CategorySpendBar(
                               category: entry.key,
@@ -197,16 +201,14 @@ class DashboardScreen extends StatelessWidget {
                             spent: metrics.totalSpent,
                             budget: monthlyBudget,
                           ),
-                          backgroundColor: Colors.deepPurple.shade50,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.deepPurple,
-                          ),
+                          backgroundColor: midnight, // Changed
+                          valueColor: const AlwaysStoppedAnimation<Color>(gold), // Changed
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         '${((metrics.totalSpent / monthlyBudget) * 100).clamp(0, 999).toStringAsFixed(1)}% of monthly budget used',
-                        style: theme.textTheme.bodyMedium,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70), // Changed
                       ),
                     ],
                   ),
@@ -226,9 +228,8 @@ class DashboardScreen extends StatelessWidget {
       alerts.add(
         _DashboardAlert(
           title: 'Overspending risk',
-          message:
-              'Projected month-end spend is RM${metrics.projectedMonthEndSpend.toStringAsFixed(2)}, above the current budget.',
-          color: Colors.deepPurple.shade700,
+          message: 'Projected month-end spend is RM${metrics.projectedMonthEndSpend.toStringAsFixed(2)}, above the current budget.',
+          color: Colors.redAccent, // Red for danger, keeps gold for warning
           icon: Icons.warning_amber_rounded,
         ),
       );
@@ -237,7 +238,7 @@ class DashboardScreen extends StatelessWidget {
         _DashboardAlert(
           title: 'Approaching budget limit',
           message: 'Current pace is close to the monthly budget threshold.',
-          color: Colors.deepPurple.shade400,
+          color: gold,
           icon: Icons.error_outline,
         ),
       );
@@ -247,9 +248,8 @@ class DashboardScreen extends StatelessWidget {
       alerts.add(
         _DashboardAlert(
           title: 'Low remaining budget',
-          message:
-              'Only ${_formatCurrency(metrics.remainingBudget)} remains for the rest of the month.',
-          color: Colors.deepPurple,
+          message: 'Only ${_formatCurrency(metrics.remainingBudget)} remains for the rest of the month.',
+          color: gold,
           icon: Icons.notifications_active_outlined,
         ),
       );
@@ -258,13 +258,8 @@ class DashboardScreen extends StatelessWidget {
     return alerts;
   }
 
-  static double _normalizedBudgetUsage({
-    required double spent,
-    required double budget,
-  }) {
-    if (budget <= 0) {
-      return 1;
-    }
+  static double _normalizedBudgetUsage({required double spent, required double budget}) {
+    if (budget <= 0) return 1;
     return (spent / budget).clamp(0, 1).toDouble();
   }
 
@@ -275,11 +270,7 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
+  const _SectionCard({required this.title, required this.subtitle, required this.child});
 
   final String title;
   final String subtitle;
@@ -291,15 +282,9 @@ class _SectionCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1E1E1E), // charcoal
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x11000000),
-            blurRadius: 14,
-            offset: Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -310,12 +295,13 @@ class _SectionCard extends StatelessWidget {
               title,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
+                color: Colors.white, // Changed
               ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54),
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54), // Changed
             ),
             const SizedBox(height: 16),
             child,
@@ -338,7 +324,7 @@ class _PredictionStat extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.deepPurple.shade50,
+        color: const Color(0xFF121212), // midnight
         borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
@@ -346,12 +332,13 @@ class _PredictionStat extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(label, style: theme.textTheme.bodySmall),
+            Text(label, style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38)),
             const SizedBox(height: 6),
             Text(
               value,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
+                color: const Color(0xFFFFD700), // Gold
               ),
             ),
           ],
@@ -370,9 +357,9 @@ class _AlertTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: alert.color.withValues(alpha: 0.1),
+        color: alert.color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: alert.color.withValues(alpha: 0.25)),
+        border: Border.all(color: alert.color.withOpacity(0.25)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -387,10 +374,10 @@ class _AlertTile extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     alert.title,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: alert.color),
                   ),
                   const SizedBox(height: 4),
-                  Text(alert.message),
+                  Text(alert.message, style: const TextStyle(color: Colors.white70)),
                 ],
               ),
             ),
